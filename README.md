@@ -115,18 +115,18 @@ Note: if you don't include the file extension filtering you'll need some other w
 
 
 ## Want to Know More
-* [FAQ](FAQ.md)
-* [How it works](HowItWorks.md)
-* [How to test and add test cases](Testing.md)
-* [Help add support for text editors](ExternalEditors.md) like Atom and others
-* [Project roadmap](Roadmap.md) - enhancements, external editors, Core support, BOM/encoding functions and more
+* [FAQ](docs/FAQ.md)
+* [How it works](docs/HowItWorks.md)
+* [How to test and add test cases](docs/Testing.md)
+* [Help add support for text editors](docs/ExternalEditors.md) like Atom and others
+* [Project roadmap](docs/Roadmap.md) - enhancements, external editors, Core support, BOM/encoding functions and more
 * [Change Log](docs/ChangeLog.md)
 
 
 ## Contributing
 There are several ways to contribute: 
-* [test it and identify what works and what could be better](Testing.md);
-* help with [adding support for text editors](ExternalEditors.md);
+* [test it and identify what works and what could be better](docs/Testing.md);
+* help with [adding support for text editors](docs/ExternalEditors.md);
 * and maybe even contribute code changes!
 
 
