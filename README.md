@@ -8,11 +8,11 @@ Tabs or spaces; spaces or tabs?  If spaces, how many?  We sure do take whitespac
 
 PowerShell Beautifier is a PowerShell command-line utility for cleaning and reformatting PowerShell script files, written in PowerShell.  Sure, it will change all indentation to tabs or spaces for you - but it will do more than just that.  A picture is worth 1KB words; here's a before/after showing all types of changes including spaces & tabs:
 
-![Before and after - casing](Compare_Whitespace.png)
+![Before and after - casing](docs/Compare_Whitespace.png)
 
 Here's a simpler pic focusing on the alias-replacement and casing changes:
 
-![Before and after - whitespace](Compare_CaseChanges.png)
+![Before and after - whitespace](docs/Compare_CaseChanges.png)
 
 
 The PowerShell Beautifier makes these changes:
@@ -120,7 +120,7 @@ Note: if you don't include the file extension filtering you'll need some other w
 * [How to test and add test cases](Testing.md)
 * [Help add support for text editors](ExternalEditors.md) like Atom and others
 * [Project roadmap](Roadmap.md) - enhancements, external editors, Core support, BOM/encoding functions and more
-* [Change Log](ChangeLog.md)
+* [Change Log](docs/ChangeLog.md)
 
 
 ## Contributing
