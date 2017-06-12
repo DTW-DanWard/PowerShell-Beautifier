@@ -12,7 +12,7 @@ This PowerShell Beautifier is both smarter and dumber than you might think.  For
 
 
 ## I got an error...?
-The error you are most likely to get is a result of a syntax error in your script.  The first thing you'll see is something like: *Tokenize-SourceScriptContent : An error occurred; is there invalid PowerShell or some formatting / syntax issue in the script?*  Following that will be more specific error information.
+The error you are most likely to get is a result of a syntax error in your script.  The first thing you'll see is something like: *Invoke-TokenizeSourceScriptContent : An error occurred; is there invalid PowerShell or some formatting / syntax issue in the script?*  Following that will be more specific error information.
 
 When the beautifier breaks up your script into tokens, the script **must** have a valid syntax.  If it doesn't this error will occur and will be reported to you.
 
