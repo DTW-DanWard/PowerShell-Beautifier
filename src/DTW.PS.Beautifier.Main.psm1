@@ -1102,11 +1102,6 @@ function Edit-DTWBeautifyScript {
 
     [datetime]$StartTime = Get-Date
 
-    # initialize valid lookup names used by beautifier if not initialized yet (lazy load)
-    if ($MyInvocation.MyCommand.Module.PrivateData['ValidNamesInitialized'] -eq $false) {
-      Initialize-DTWBeautifyValidNames
-    }
-
     #region Initialize script-level variables
     # initialize all script-level variables used in a cleaning process
     Initialize-ProcessVariables

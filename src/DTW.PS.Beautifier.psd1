@@ -1,4 +1,4 @@
-﻿@{ ModuleVersion         = '1.0.0'    
+﻿@{ ModuleVersion         = '1.0.1'
    Author                = 'Dan Ward'
    CompanyName           = 'DTWConsulting.com'
    Copyright             = 'Copyright 2012-2017 Dan Ward. All rights reserved.'
@@ -7,8 +7,7 @@
    NestedModules         = 'DTW.PS.FileSystem.Encoding.psm1',
                            'DTW.PS.Beautifier.PopulateValidNames.psm1',
                            'DTW.PS.Beautifier.Main.psm1'
-   PrivateData           = @{   
-                              ValidNamesInitialized = $false;
+   PrivateData           = @{
                               ValidCommandNames = $null;
                               ValidCommandParameterNames = $null;
                               ValidAttributeNames = $null;

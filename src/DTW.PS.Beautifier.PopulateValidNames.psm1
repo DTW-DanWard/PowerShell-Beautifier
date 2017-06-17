@@ -15,45 +15,79 @@ for more information.  I hope you enjoy using this utility!
 
 Set-StrictMode -Version 2
 
-#region Function: Initialize-DTWBeautifyValidNames
+#region Function: Set-LookupTableValuesFromFile
 
 <#
 .SYNOPSIS
-Resets the Valid*Names values
+Populates the values of the lookup tables from cache file.
 .DESCRIPTION
-Resets the Valid*Names values
-.EXAMPLE
-Initialize-DTWBeautifyValidNames
-<Resets the Valid*Names variable values>
+Populates the values of the lookup tables from cache file.
 #>
-function Initialize-DTWBeautifyValidNames {
+function Set-LookupTableValuesFromFile {
   #region Function parameters
   [CmdletBinding()]
   param()
   #endregion
   process {
-    # load initial values for lookup tables
-    Set-LookupTableValues
-
-    # set module-level variable valid names initialized flag to true
-    # used by lazy load: lookup table values are loaded first time Edit-DTWBeautifyScript is 
-    # called so module load is fast
-    $MyInvocation.MyCommand.Module.PrivateData['ValidNamesInitialized'] = $true
-
+    $CacheData = Import-Clixml -Path $ValidValuesCacheFilePath
+    $MyInvocation.MyCommand.Module.PrivateData.ValidCommandNames = $CacheData.ValidCommandNames
+    $MyInvocation.MyCommand.Module.PrivateData.ValidCommandParameterNames = $CacheData.ValidCommandParameterNames
+    $MyInvocation.MyCommand.Module.PrivateData.ValidAttributeNames = $CacheData.ValidAttributeNames
+    $MyInvocation.MyCommand.Module.PrivateData.ValidMemberNames = $CacheData.ValidMemberNames
+    $MyInvocation.MyCommand.Module.PrivateData.ValidVariableNames = $CacheData.ValidVariableNames
   }
 }
-Export-ModuleMember -Function Initialize-DTWBeautifyValidNames
 #endregion
 
-#region Function: Set-LookupTableValues
+#region Function: Save-LookupTableValuesToFile
 
 <#
 .SYNOPSIS
-Populates the values of the lookup tables.
+Saves the in-memory lookup tables values to cache file.
 .DESCRIPTION
-Populates the values of the lookup tables using the Get-Valid*Names functions.
+Saves the in-memory lookup tables values to cache file.
 #>
-function Set-LookupTableValues {
+function Save-LookupTableValuesToFile {
+  #region Function parameters
+  [CmdletBinding()]
+  param()
+  #endregion
+  process {
+    Export-Clixml -InputObject $MyInvocation.MyCommand.Module.PrivateData -Path $ValidValuesCacheFilePath -Depth 10
+  }
+}
+#endregion
+
+#region Function: Update-DTWRegenerateLookupTableValuesFile
+
+<#
+.SYNOPSIS
+Gets lookup values currently in memory and saves cache file.
+.DESCRIPTION
+Gets lookup values currently in memory and saves cache file.
+#>
+function Update-DTWRegenerateLookupTableValuesFile {
+  #region Function parameters
+  [CmdletBinding()]
+  param()
+  #endregion
+  process {
+    Set-LookupTableValuesFromMemory
+    Save-LookupTableValuesToFile
+  }
+}
+Export-ModuleMember -Function Update-DTWRegenerateLookupTableValuesFile
+#endregion
+
+#region Function: Set-LookupTableValuesFromMemory
+
+<#
+.SYNOPSIS
+Populates the values of the lookup tables from values currently in memory.
+.DESCRIPTION
+Populates the values of the lookup tables from values currently in memory.
+#>
+function Set-LookupTableValuesFromMemory {
   #region Function parameters
   [CmdletBinding()]
   param()
@@ -313,3 +347,31 @@ function Initialize-ValidVariableNames {
   }
 }
 #endregion
+
+#region 'Main' - loads cache lookup table values upon module load
+
+function Invoke-Main {
+  #region Function parameters
+  [CmdletBinding()]
+  param()
+  #endregion
+  process {
+
+    # set path to the 'valid values' cache file
+    [string]$script:ValidValuesCacheFilePath = Join-Path -Path $PSScriptRoot -ChildPath "DTW.PS.BeautifierValidValuesCache.txt"
+
+    # if cache file exists, load cache values from file
+    # else generate from memory then save those values to file 
+    # side note: calling $MyInvocation.MyCommand.Module.PrivateData only works from within a function
+    # so we need to have a 'main' function
+    if ($true -eq (Test-Path -Path $ValidValuesCacheFilePath)) {
+      Set-LookupTableValuesFromFile
+    } else {
+      Update-DTWRegenerateLookupTableValuesFile
+    }
+  }
+}
+#endregion
+
+# call 'main'
+Invoke-Main

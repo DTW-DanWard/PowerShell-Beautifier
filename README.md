@@ -43,7 +43,7 @@ The PowerShell Beautifier makes these changes:
 ## Setup
 1. Download the PowerShell Beautifier utility.
 2. Change directory to the module.
-3. Import the module.
+3. Import the module.  (This takes a few seconds the first time but is fast thereafter.)
 ```
 Import-Module .\DTW.PS.Beautifier.psd1
 ```
