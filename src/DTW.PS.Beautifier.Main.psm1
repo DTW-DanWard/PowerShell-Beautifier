@@ -13,6 +13,16 @@ Get-Help Edit-DTWBeautifyScript -Full
 See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com 
 for more information.  I hope you enjoy using this utility!
 -Dan Ward
+
+Quick developer notes, if you are interested:
+If an error occurs it is typically written back to the user via Write-Error.  However, 
+in order to help integrate with exteral text editors, some minor changes were made.  A 
+parameter switch StandardOutput was added for use by external editors and if specified
+cleaned content is written to stdout (instead of any source or destination file) and 
+errors are written to stder.  Because we use stderr, we won't use Write-Error as its output
+isn't very concise and probaby won't work with external editors calling PowerShell.
+That said, we aren't replacing every instace of Write-Error, only the ones likely to be
+affected by StandardOutput.
 #>
 
 
@@ -32,29 +42,24 @@ function Initialize-ProcessVariables {
   param()
   #endregion
   process {
-    # keep track if everything initialized correctly before allowing script to run,
-    # most notably to make sure required modules are loaded; set to true at end of
-    # initialize and checked at beginning of main function
-    [bool]$script:ModuleInitialized = $false
-
-    # make sure required functions are loaded
-    # Get-DTWFileEncoding is required for get encoding function
-    [string]$RequiredFunctionName = 'Get-DTWFileEncoding'
-    $RequiredFunction = Get-Command -Name $RequiredFunctionName -ErrorAction SilentlyContinue
-    if ($null -eq $RequiredFunction) {
-      Write-Error -Message "Required function $RequiredFunctionName is not loaded; cannot process files."
-      return
-    }
-
     #region Initialize process variables
-    # indent text; use two spaces by default, value is overridden with param
-    [string]$script:IndentText = '  '
 
     # initialize file path information
     # source file to process
     [string]$script:SourcePath = $null
     # destination file; this value is different from SourcePath if Edit-DTWBeautifyScript -DestinationPath is specified
     [string]$script:DestinationPath = $null
+
+    # indent text, value is overridden with param
+    [string]$script:IndentText = ''
+
+    # you may notice there is no module level / process variable for Quiet; that is because it is
+    # currently only used directly within Edit-DTWBeautifyScript itself; if it is ever used outside
+    # that function it will have to be included here
+
+    # ouput clean script to standard output instead of source or destination path 
+    [bool]$script:StandardOutput = $false
+
     # result content is created in a temp file; if no errors this becomes the result file
     [string]$script:DestinationPathTemp = $null
 
@@ -66,9 +71,6 @@ function Initialize-ProcessVariables {
     # initialize destination storage
     [System.IO.StreamWriter]$script:DestinationStreamWriter = $null
     #endregion
-
-    # if got this far, everything is good
-    $script:ModuleInitialized = $true
   }
 }
 #endregion
@@ -365,7 +367,12 @@ function Import-ScriptContent {
     # Tokenize method BUT we also need access to the original characters by byte so we can copy string values
     $script:SourceScriptString = [System.IO.File]::ReadAllText($DestinationPathTemp)
     if ($? -eq $false) {
-      Write-Error -Message "Error occurred reading all text for getting content for SourceScriptString with file: $DestinationPathTemp"
+      [string]$ErrMessage = "Error occurred reading all text for getting content for SourceScriptString with file: $DestinationPathTemp"
+      if ($StandardOutput -eq $true) {
+        [console]::Error.WriteLine($ErrMessage)
+      } else {
+        Write-Error -Message $ErrMessage
+      }
       return
     }
   }
@@ -401,9 +408,23 @@ function Invoke-TokenizeSourceScriptContent {
     #endregion
     $script:SourceTokens = [System.Management.Automation.PSParser]::Tokenize($SourceScriptString,[ref]$Err)
     if ($null -ne $Err -and $Err.Count) {
-      Write-Error -Message 'An error occurred; is there invalid PowerShell or some formatting / syntax issue in the script? See error record below.'
-      $Err | ForEach-Object {
-        Write-Error -Message "$($_.Message) Content: $($_.Token.Content), line: $($_.Token.StartLine), column: $($_.Token.StartColumn)"
+      # set SourceTokens to null so no more processing
+      $script:SourceTokens = $null
+      # if writing to StandardOutput instead of file, make error message concise for user 
+      # (probably displayed in pop-up or status area).  this is the area most likely for
+      # an external editor to encounter an error from the beautifier - this will throw an 
+      # error if there is a syntax error in the user's source file.
+      if ($StandardOutput -eq $true) {
+        $ErrMessage = "Syntax error: "
+        $Err | ForEach-Object {
+          $ErrMessage += "$($_.Message)  content: $($_.Token.Content)  line: $($_.Token.StartLine)  column: $($_.Token.StartColumn); "
+        }
+        [console]::Error.WriteLine($ErrMessage)
+      } else {
+        Write-Error -Message 'An error occurred; is there invalid PowerShell or some formatting / syntax issue in the script? See error record below.'
+        $Err | ForEach-Object {
+          Write-Error -Message "$($_.Message) Content: $($_.Token.Content), line: $($_.Token.StartLine), column: $($_.Token.StartColumn)"
+        }
       }
       return
     }
@@ -1071,8 +1092,15 @@ Path to the source PowerShell file
 .PARAMETER DestinationPath
 Path to write reformatted PowerShell.  If not specified rewrites file
 in place.
+.PARAMETER IndentText
+String step to use when indenting.  Default is two spaces, specify tabs
+by passing: "`t"
 .PARAMETER Quiet
-If specified, does not output status text.
+If specified, does not output any status text.
+.PARAMETER StandardOutput
+If specified, cleaned script is only written to stdout, not any file, and
+any errors will be written to stderror using concise format (not Write-Error).
+This option may be required for integrating with external editors.
 .EXAMPLE
 Edit-DTWBeautifyScript -Source c:\P\S1.ps1 -Destination c:\P\S1_New.ps1
 Gets content from c:\P\S1.ps1, cleans and writes to c:\P\S1_New.ps1
@@ -1080,8 +1108,8 @@ Gets content from c:\P\S1.ps1, cleans and writes to c:\P\S1_New.ps1
 Edit-DTWBeautifyScript -SourcePath c:\P\S1.ps1
 Writes cleaned script results back into c:\P\S1.ps1
 .EXAMPLE
-dir c:\CodeFiles -Include *.ps1,*.psm1 -Recurse | Edit-DTWBeautifyScript
-For each .ps1 and .psm1 file, cleans and rewrites back into same file
+dir c:\CodeFiles -Include *.ps1,*.psm1 -Recurse -IndentText "`t" | Edit-DTWBeautifyScript
+For each .ps1 and .psm1 file, cleans and rewrites back into same file using tabs.
 #>
 function Edit-DTWBeautifyScript {
   #region Function parameters
@@ -1095,7 +1123,9 @@ function Edit-DTWBeautifyScript {
     [string]$DestinationPath,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [string]$IndentText = '  ',
-    [switch]$Quiet
+    [switch]$Quiet,
+    [Alias('StdOut')]
+    [switch]$StandardOutput
   )
   #endregion
   process {
@@ -1105,11 +1135,6 @@ function Edit-DTWBeautifyScript {
     #region Initialize script-level variables
     # initialize all script-level variables used in a cleaning process
     Initialize-ProcessVariables
-    # if not initialize properly, exit
-    if ($false -eq $ModuleInitialized) {
-      Write-Error -Message 'Module not properly initialized; exiting.'
-      return
-    }
     #endregion
 
     #region Parameter validation and path testing
@@ -1143,6 +1168,16 @@ function Edit-DTWBeautifyScript {
     }
     # set script level variable
     $script:IndentText = $IndentText
+    #endregion
+
+    #region If StandardOutput specified then Quiet must be, too
+    # if user has specified StandardOutput, all cleaned text will be returned via
+    # stdout so no status messages can be sent to user so force Quiet
+    if ($StandardOutput) {
+      $Quiet = $true
+      # also, make sure StandardOutput script-level variable (used in other functions) is updated
+      $script:StandardOutput = $true
+    }
     #endregion
     #endregion
 
@@ -1221,9 +1256,11 @@ function Edit-DTWBeautifyScript {
     $Err = $null
     if (!$Quiet) { Write-Host 'Tokenizing script content' }
     Invoke-TokenizeSourceScriptContent -EV Err
-    # if an error occurred tokenizing content, it will be written from Invoke-TokenizeSourceScriptContent
-    # so in this case just initialize the process variables and exit
-    if ($null -ne $Err -and $Err.Count) {
+    # if an error occurred tokenizing content, reset the process variables to clean up and then just return
+    # if StandardOutput not specified, Invoke-TokenizeSourceScriptContent will Write-Error so $Err will have contents 
+    # if StandardOutput specified, $script:SourceTokens is set to $null
+
+    if ($null -ne $Err -and $Err.Count -gt 0 -or $script:SourceTokens -eq $null) {
       Initialize-ProcessVariables
       return
     }
@@ -1247,22 +1284,33 @@ function Edit-DTWBeautifyScript {
       if (!$Quiet) { Write-Host 'Migrate source content to destination format' }
       Copy-SourceContentToDestinationStream
     } catch {
-      Write-Error -Message "$($MyInvocation.MyCommand.Name) :: error occurred during processing"
-      Write-Error -Message "$($_.ToString())"
+      if ($StandardOutput -eq $true) {
+        [console]::Error.WriteLine("Unknown error occurred: $($_.ToString())")
+      } else {
+        Write-Error -Message "$($MyInvocation.MyCommand.Name) :: error occurred during processing"
+        Write-Error -Message "$($_.ToString())"
+      }
       return
     } finally {
-      #region Flush and close file stream writer
+      #region Flush and close file stream writer; either copy temp file to destination or to stdout
       if (!$Quiet) { Write-Host "Write destination file: $script:DestinationPath" }
       if ($null -ne $script:DestinationStreamWriter) {
         $script:DestinationStreamWriter.Flush()
         $script:DestinationStreamWriter.Close()
         $script:DestinationStreamWriter.Dispose()
-        #region Replace destination file with destination temp (which has updated content)
-        # if destination file already exists, remove it
-        if ($true -eq (Test-Path -Path $script:DestinationPath)) { Remove-Item -Path $script:DestinationPath -Force }
-        # rename destination temp to destination
-        Rename-Item -Path $DestinationPathTemp -NewName (Split-Path -Path $script:DestinationPath -Leaf)
-        #endregion
+        # if outputting cleaned script to stdout, write content from $DestinationPathTemp and delete that temp file
+        # else copy file to destination
+        if ($true -eq $StandardOutput) {
+          [string]$EncodingFileSystemProvider = Get-DTWFileEncodingSystemProviderNameFromTypeName ($TempFileEncoding).EncodingName
+          Get-Content -Path $DestinationPathTemp -Encoding $EncodingFileSystemProvider | Write-Output
+          Remove-Item -Path $DestinationPathTemp -Force
+        } else {
+          # replace destination file with destination temp (which has updated content)
+          # if destination file already exists, remove it
+          if ($true -eq (Test-Path -Path $script:DestinationPath)) { Remove-Item -Path $script:DestinationPath -Force }
+          # rename destination temp to destination
+          Rename-Item -Path $DestinationPathTemp -NewName (Split-Path -Path $script:DestinationPath -Leaf)
+        }
       }
       #endregion
       if (!$Quiet) { Write-Host ("Finished in {0:0.000} seconds.`n" -f ((Get-Date) - $StartTime).TotalSeconds) }

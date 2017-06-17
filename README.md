@@ -32,8 +32,8 @@ The PowerShell Beautifier makes these changes:
 	* [Run on single file updating in place with 2 spaces indentation](#run-on-single-file-updating-in-place-with-2-spaces-indentation)
 	* [Run on single file but indent with tabs](#run-on-single-file-but-indent-with-tabs)
 	* [Run on single file outputting to new file with 2 spaces indentation](#run-on-single-file-outputting-to-new-file-with-2-spaces-indentation)
-	* [Run on single file and use 5 spaces for indent step](#run-on-single-file-and-use-5-spaces-for-indent-step)
 	* [Run on multiple files in a directory structure](#run-on-multiple-files-in-a-directory-structure)
+    * [Get cleaned content via standard output rather than updating file](#get-cleaned-content-via-standard-output-rather-than-updating-file)
 * [Want to Know More](#want-to-know-more)
 * [Contributing](#contributing)
 * [Credits](#credits)
@@ -99,19 +99,21 @@ This doesn't modify the source file; it outputs the clean version to a new file.
 Edit-DTWBeautifyScript -SourcePath C:\temp\MyFile.ps1 -DestinationPath c:\temp\MyFile_AFTER.ps1
 ```
 
-### Run on single file and use 5 spaces for indent step
-No matter where you sit on the tabs vs. spaces battle, I think we can all agree that 5 spaces is wrong, just wrong.  Still, here is the command that'll make it happen:
-```
-Edit-DTWBeautifyScript -SourcePath C:\temp\MyFile.ps1 -IndentText "     "
-```
-
 ### Run on multiple files in a directory structure
 Time for the pipeline.
 ```
 Get-ChildItem -Path c:\temp -Include *.ps1,*.psm1 -Recurse | Edit-DTWBeautifyScript
 ```
 
-Note: if you don't include the file extension filtering you'll need some other way to ignore folders (i.e. ignore PSIsContainer -eq $true) as Edit-DTWBeautifyScript will Write-Error for those.
+Note: if you don't include the file extension filtering you'll need some other way to ignore folders (i.e. ignore PSIsContainer -eq $true) as Edit-DTWBeautifyScript will error for those.
+
+### Get cleaned content via standard output rather than updating file
+If you want to receive the beautified content via stdout (most likely if you are calling from an external editor), use the -StandardOutput (or -StdOut) parameter:
+```
+Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -StandardOutput
+```
+
+When using -StandardOutput, the SourcePath is used for content but not updated, DestinationPath is ignored (if passed).  If an error occurs (syntax error in user script), no content is returned via stdout but stderr will have a concise error that can be displayed to the user.
 
 
 ## Want to Know More
