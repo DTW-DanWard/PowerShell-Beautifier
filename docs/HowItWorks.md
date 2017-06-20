@@ -115,10 +115,6 @@ Once populated you can see the values in the module's PrivateData, i.e.
 ```
 
 
-### Windows line endings
-FYI when the beautifier writes a line ending, it always writes the Windows OS standard line ending: 13 10.  For PowerShell Core support this will have to be environment dynamic - with possibly a parameter override to force a particular line ending.
-
-
 ### Write content from token or byte array?
 One last 'fun' thing I discovered when writing this utility: you can't read string values directly from the tokens without accidentally changing the source code.  Consider this seemingly very simple example:
 

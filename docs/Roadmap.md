@@ -4,10 +4,9 @@
 
 Here's a tentative roadmap:
 * Fix any immediate pressing issues.
-* [Add support for text editors](ExternalEditors.md) - Atom, ISE, Sublime, VS Code, what else?
+* [Add support for text editors](ExternalEditors.md) - Atom, Sublime, VS Code, what else?
 * Add configuration for better whitespace control.
 * Move Byte Order Mark / encoding functions to new separate project (a number of useful functions for handling BOM/BOM-less files were created for the PS Beautifier).
-* Add support for PowerShell Core (OS-specific line endings, OS-specific temp file location, API changes, what else?)
 * Add PowerShell-Beautifier to package managers.
 
 

@@ -302,7 +302,7 @@ function Initialize-ValidMemberNames {
        [int],[long],[decimal],[single],[double],`
        [bool],[datetime],[guid],[hashtable],[xml],[array],`
        [System.IO.File],[System.IO.FileInfo],[System.IO.FileAttributes],[System.IO.FileOptions],`
-       (Get-Item -Path $env:TEMP),`
+       (Get-Item -Path $PSHOME),`
        [System.IO.Directory],[System.IO.DirectoryInfo],[System.Exception]
 
     $TypesToCheck | ForEach-Object {

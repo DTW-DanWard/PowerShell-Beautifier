@@ -551,17 +551,22 @@ function Compare-DTWFilesIncludingBOM {
     #endregion
     #endregion
 
-    # I was about to write a byte by byte comparison but happened to stumble across this: 
-    # http://stackoverflow.com/questions/19990788/powershell-binary-file-comparison
-    # thank you, mjolinor!
-    $Hashes = foreach ($Filepath in $Path1,$Path2) {
-      $MD5 = [Security.Cryptography.HashAlgorithm]::Create('MD5')
-      $Stream = ([IO.StreamReader]"$Filepath").BaseStream
-      -join ($MD5.ComputeHash($Stream) | ForEach-Object { '{0:x2}' -f $_ })
-      $Stream.Close()
+    #region Compare files byte by byte
+    if (((Get-Item -Path $Path1).Length) -ne ((Get-Item -Path $Path2).Length)) {
+      $false
+    } else {
+      [string]$File1SourceString = [System.IO.File]::ReadAllText($Path1)
+      [string]$File2SourceString = [System.IO.File]::ReadAllText($Path2)
+      [bool]$Equal = $true
+      for ($i = 0; $i -lt ((Get-Item -Path $Path1).Length); $i++) {
+        if ($File1SourceString[$i] -ne $File2SourceString[$i]) {
+          $Equal = $false
+          break
+        }
+      }
+      $Equal
     }
-    # compare hashes; if same returns $true else $false
-    $Hashes[0] -eq $Hashes[1]
+    #endregion
   }
 }
 Export-ModuleMember -Function Compare-DTWFilesIncludingBOM

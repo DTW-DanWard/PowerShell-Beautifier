@@ -4,7 +4,7 @@ PowerShell Beautifier: a whitespace reformatter and code cleaner for PowerShell.
 
 ## Formatting Matters
 
-Tabs or spaces; spaces or tabs?  If spaces, how many?  We sure do take whitespace seriously.  But when writing 'commit-worthy' PowerShell code, there's more than just whitespace to think about.  Shouldn't you use cmdlet names instead of aliases?  And shouldn't you have correct casing for cmdlets, methods and types?
+Tabs or spaces; spaces or tabs?  If spaces, how many?  We sure do take whitespace seriously.  But when writing *commit-worthy* PowerShell code, there's more than just whitespace to think about.  Shouldn't you use cmdlet names instead of aliases?  And shouldn't you have correct casing for cmdlets, methods and types?  Especially if you want to support PowerShell Core...?
 
 PowerShell Beautifier is a PowerShell command-line utility for cleaning and reformatting PowerShell script files, written in PowerShell.  Sure, it will change all indentation to tabs or spaces for you - but it will do more than just that.  A picture is worth 1KB words; here's a before/after showing all types of changes including spaces & tabs:
 
@@ -121,7 +121,7 @@ When using -StandardOutput, the SourcePath is used for content but not updated, 
 * [How it works](docs/HowItWorks.md)
 * [How to test and add test cases](docs/Testing.md)
 * [Help add support for text editors](docs/ExternalEditors.md) like Atom and others
-* [Project roadmap](docs/Roadmap.md) - enhancements, external editors, Core support, BOM/encoding functions and more
+* [Project roadmap](docs/Roadmap.md) - enhancements, external editors, BOM/encoding functions and more
 * [Change Log](docs/ChangeLog.md)
 
 

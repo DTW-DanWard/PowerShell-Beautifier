@@ -4,7 +4,7 @@
 
 # type that will exist in memory; fix casing
 [System.Text.Encoding]$B = $null
-[System.IO.StreamWriter]$SW = $null
+[System.Exception]$SW = $null
 
 # type that won't exist in memory; use name as-is
 [System.Foo.MeowMeow]$C = $null

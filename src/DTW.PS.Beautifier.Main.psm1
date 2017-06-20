@@ -764,7 +764,7 @@ function Write-TokenContent_NewLine {
   )
   process {
     # add NewLine using Windows standard to destination
-    Add-StringContentToDestinationFileStreamWriter "`r`n"
+    Add-StringContentToDestinationFileStreamWriter ([environment]::NewLine)
   }
 }
 #endregion

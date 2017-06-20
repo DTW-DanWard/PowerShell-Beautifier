@@ -264,7 +264,7 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
       Edit-DTWBeautifyScript @Params
 
       # compare result in test folder with correct folder
-      if ($true -eq (Compare-DTWFilesIncludingBOM $OutputTestPath $OutputCorrectPath)) {
+      if ($true -eq (Compare-DTWFilesIncludingBOM -Path1 $OutputTestPath -Path2 $OutputCorrectPath)) {
         if (!$Quiet) { Write-Host (' - correct!') }
       } else {
         $script:TestFailed = $true
