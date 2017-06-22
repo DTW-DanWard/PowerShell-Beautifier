@@ -102,7 +102,7 @@ function Set-LookupTableValuesFromMemory {
 }
 #endregion
 
-#region Function: Initialize-ValidCommandNames
+#region Functions: Initialize-ValidCommandNames, Get-AdditionalAliasesForCore
 
 <#
 .SYNOPSIS
@@ -148,11 +148,93 @@ function Initialize-ValidCommandNames {
       $CommandNames.Item($OriginalAlias) = $Cmd
     }
 
-    # last but not least, we want the ForEach Command (i.e. the ForEach-Object Cmdlet used in a 
-    # pipeline, not to be confused with the foreach Keyword) to map to the name ForEach-Object.
-    # So, let's add it.
+    # also, we want the ForEach Command (i.e. the ForEach-Object Cmdlet used in a 
+    # pipeline, not to be confused with the foreach Keyword) to map to the name
+    # ForEach-Object.  So, let's add it.
     $CommandNames.'foreach' = 'ForEach-Object'
+
+    # last but not least - let's add any other manual mappings to handle issues
+    # where Core does not contain all aliases across all OSes
+    $MissingEntries = Get-AdditionalAliasesForCore
+    $MissingEntries.Keys | ForEach-Object {
+      $Key = $_
+      if (!$CommandNames.ContainsKey($Key)) {
+        $CommandNames.Add($Key,$MissingEntries.$Key)
+      }
+    }
+
+    # return our valid command names
     $CommandNames
+  }
+}
+
+<#
+.SYNOPSIS
+Gets lookup hashtable of alias/cmdlet mappings inconsistent across all OSes.
+.DESCRIPTION
+With PowerShell Core alias mappings will no longer be consistent across OSes.
+This poses significant issues in the likely scenario where a script was edited
+on one OS but is then being beautified on another.  Consider 'cat'; on Windows
+this maps to 'Get-Content' but on other Unix-based OSes this will map to the
+native executable. The only safe solution is to map ALL these aliases to their
+cmdlets (we are beautifying PowerShell scripts after all, not Unix-shell scripts)
+to make sure the scripts keep working consistently.
+
+The fix: add a bunch of aliases that might potentially be missing.  This function
+returns the likely questionable aliases, it will probably get modified over time
+as Core is upgraded.
+#>
+function Get-AdditionalAliasesForCore {
+  #region Function parameters
+  [CmdletBinding()]
+  param()
+  #endregion
+  process {
+    [hashtable]$MissingAliasMappings = @{}
+    $MissingAliasMappings.Add('ac','Add-Content')
+    $MissingAliasMappings.Add('asnp','Add-PSSnapIn')
+    $MissingAliasMappings.Add('cat','Get-Content')
+    $MissingAliasMappings.Add('cfs','ConvertFrom-String')
+    $MissingAliasMappings.Add('compare','Compare-Object')
+    $MissingAliasMappings.Add('cp','Copy-Item')
+    $MissingAliasMappings.Add('cpp','Copy-ItemProperty')
+    $MissingAliasMappings.Add('curl','Invoke-WebRequest')
+    $MissingAliasMappings.Add('diff','Compare-Object')
+    $MissingAliasMappings.Add('epsn','Export-PSSession')
+    $MissingAliasMappings.Add('gcb','Get-Clipboard')
+    $MissingAliasMappings.Add('gsnp','Get-PSSnapIn')
+    $MissingAliasMappings.Add('gsv','Get-Service')
+    $MissingAliasMappings.Add('gwmi','Get-WmiObject')
+    $MissingAliasMappings.Add('ipsn','Import-PSSession')
+    $MissingAliasMappings.Add('ise','powershell_ise.exe')
+    $MissingAliasMappings.Add('iwmi','Invoke-WMIMethod')
+    $MissingAliasMappings.Add('lp','Out-Printer')
+    $MissingAliasMappings.Add('ls','Get-ChildItem')
+    $MissingAliasMappings.Add('man','help')
+    $MissingAliasMappings.Add('mount','New-PSDrive')
+    $MissingAliasMappings.Add('mv','Move-Item')
+    $MissingAliasMappings.Add('npssc','New-PSSessionConfigurationFile')
+    $MissingAliasMappings.Add('ogv','Out-GridView')
+    $MissingAliasMappings.Add('ps','Get-Process')
+    $MissingAliasMappings.Add('rm','Remove-Item')
+    $MissingAliasMappings.Add('rmdir','Remove-Item')
+    $MissingAliasMappings.Add('rsnp','Remove-PSSnapin')
+    $MissingAliasMappings.Add('rujb','Resume-Job')
+    $MissingAliasMappings.Add('rwmi','Remove-WMIObject')
+    $MissingAliasMappings.Add('sasv','Start-Service')
+    $MissingAliasMappings.Add('scb','Set-Clipboard')
+    $MissingAliasMappings.Add('shcm','Show-Command')
+    $MissingAliasMappings.Add('sleep','Start-Sleep')
+    $MissingAliasMappings.Add('sort','Sort-Object')
+    $MissingAliasMappings.Add('spsv','Stop-Service')
+    $MissingAliasMappings.Add('start','Start-Process')
+    $MissingAliasMappings.Add('sujb','Suspend-Job')
+    $MissingAliasMappings.Add('swmi','Set-WMIInstance')
+    $MissingAliasMappings.Add('tee','Tee-Object')
+    $MissingAliasMappings.Add('trcm','Trace-Command')
+    $MissingAliasMappings.Add('wget','Invoke-WebRequest')
+    $MissingAliasMappings.Add('write','Write-Output')
+    $MissingAliasMappings
   }
 }
 #endregion
