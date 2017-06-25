@@ -1,31 +1,17 @@
 dir c:\temp
 
-ls c:\temp
-
 gi c:\temp\asdf.txt
 
 type c:\temp\asdf.txt
 
-cat c:\temp\asdf.txt
-
 del c:\temp\asdf.txt
 
-write "asdf"
-
-Get-ChildItem -Filter *.txt | sort LastWriteTime
-
 Get-ChildItem | where { $_.Extension -eq '.txt' }
-
-dir | % { write $_.Name }
 
 # list all known aliases to find what is missing
 Get-Command %
 Get-Command ?
-Get-Command ac
-Get-Command asnp
-Get-Command cat
 Get-Command cd
-Get-Command CFS
 Get-Command chdir
 Get-Command clc
 Get-Command clear
@@ -35,23 +21,17 @@ Get-Command clp
 Get-Command cls
 Get-Command clv
 Get-Command cnsn
-Get-Command compare
 Get-Command copy
-Get-Command cp
 Get-Command cpi
-Get-Command cpp
-Get-Command curl
 Get-Command cvpa
 Get-Command dbp
 Get-Command del
-Get-Command diff
 Get-Command dir
 Get-Command dnsn
 Get-Command ebp
 Get-Command echo
 Get-Command epal
 Get-Command epcsv
-Get-Command epsn
 Get-Command erase
 Get-Command etsn
 Get-Command exsn
@@ -63,14 +43,12 @@ Get-Command fw
 Get-Command gal
 Get-Command gbp
 Get-Command gc
-Get-Command gcb
 Get-Command gci
 Get-Command gcm
 Get-Command gcs
 Get-Command gdr
 Get-Command ghy
 Get-Command gi
-Get-Command gin
 Get-Command gjb
 Get-Command gl
 Get-Command gm
@@ -80,12 +58,9 @@ Get-Command gps
 Get-Command gpv
 Get-Command group
 Get-Command gsn
-Get-Command gsnp
-Get-Command gsv
 Get-Command gtz
 Get-Command gu
 Get-Command gv
-Get-Command gwmi
 Get-Command h
 Get-Command history
 Get-Command icm
@@ -95,33 +70,22 @@ Get-Command ii
 Get-Command ipal
 Get-Command ipcsv
 Get-Command ipmo
-Get-Command ipsn
 Get-Command irm
-Get-Command ise
-Get-Command iwmi
 Get-Command iwr
 Get-Command kill
-Get-Command lp
-Get-Command ls
-Get-Command man
 Get-Command md
 Get-Command measure
 Get-Command mi
-Get-Command mount
 Get-Command move
 Get-Command mp
-Get-Command mv
 Get-Command nal
 Get-Command ndr
 Get-Command ni
 Get-Command nmo
-Get-Command npssc
 Get-Command nsn
 Get-Command nv
-Get-Command ogv
 Get-Command oh
 Get-Command popd
-Get-Command ps
 Get-Command pushd
 Get-Command pwd
 Get-Command r
@@ -133,46 +97,27 @@ Get-Command rdr
 Get-Command ren
 Get-Command ri
 Get-Command rjb
-Get-Command rm
-Get-Command rmdir
 Get-Command rmo
 Get-Command rni
 Get-Command rnp
 Get-Command rp
 Get-Command rsn
-Get-Command rsnp
-Get-Command rujb
 Get-Command rv
 Get-Command rvpa
-Get-Command rwmi
 Get-Command sajb
 Get-Command sal
 Get-Command saps
-Get-Command sasv
 Get-Command sbp
 Get-Command sc
-Get-Command scb
 Get-Command select
 Get-Command set
-Get-Command shcm
 Get-Command si
 Get-Command sl
-Get-Command sleep
 Get-Command sls
-Get-Command sort
 Get-Command sp
 Get-Command spjb
 Get-Command spps
-Get-Command spsv
-Get-Command start
-Get-Command stz
-Get-Command sujb
 Get-Command sv
-Get-Command swmi
-Get-Command tee
-Get-Command trcm
 Get-Command type
-Get-Command wget
 Get-Command where
 Get-Command wjb
-Get-Command write

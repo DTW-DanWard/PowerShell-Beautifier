@@ -138,28 +138,12 @@ function Initialize-ValidCommandNames {
       }
     }
 
-    # for each alias, check its definition and loop until definition command type isn't an
-    # alias; then add with original Alias name as key and 'final' definition as value
-    Get-Alias | ForEach-Object {
-      $OriginalAlias = $_.Name
-      $Cmd = $_.Definition
-      while ((Get-Command -Name $Cmd).CommandType -eq 'Alias') { $Cmd = (Get-Command -Name $Cmd).Definition }
-      # add alias name as key and definition as value
-      $CommandNames.Item($OriginalAlias) = $Cmd
-    }
-
-    # also, we want the ForEach Command (i.e. the ForEach-Object Cmdlet used in a 
-    # pipeline, not to be confused with the foreach Keyword) to map to the name
-    # ForEach-Object.  So, let's add it.
-    $CommandNames.'foreach' = 'ForEach-Object'
-
-    # last but not least - let's add any other manual mappings to handle issues
-    # where Core does not contain all aliases across all OSes
-    $MissingEntries = Get-AdditionalAliasesForCore
-    $MissingEntries.Keys | ForEach-Object {
+    # manually add Aliases that are known to be safe for Core - across all OSes
+    $Aliases = Get-CoreSafeAliases
+    $Aliases.Keys | ForEach-Object {
       $Key = $_
       if (!$CommandNames.ContainsKey($Key)) {
-        $CommandNames.Add($Key,$MissingEntries.$Key)
+        $CommandNames.Add($Key,$Aliases.$Key)
       }
     }
 
@@ -170,71 +154,138 @@ function Initialize-ValidCommandNames {
 
 <#
 .SYNOPSIS
-Gets lookup hashtable of alias/cmdlet mappings inconsistent across all OSes.
+Gets lookup hashtable of alias known to exist across OSes for PowerShell core.
 .DESCRIPTION
-With PowerShell Core alias mappings will no longer be consistent across OSes.
+With PowerShell Core, alias mappings will not be consistent across OSes.
 This poses significant issues in the likely scenario where a script was edited
-on one OS but is then being beautified on another.  Consider 'cat'; on Windows
-this maps to 'Get-Content' but on other Unix-based OSes this will map to the
-native executable. The only safe solution is to map ALL these aliases to their
-cmdlets (we are beautifying PowerShell scripts after all, not Unix-shell scripts)
-to make sure the scripts keep working consistently.
-
-The fix: add a bunch of aliases that might potentially be missing.  This function
-returns the likely questionable aliases, it will probably get modified over time
-as Core is upgraded.
+on one OS but is then being beautified on another.  Consider 'curl'; in Windows
+PowerShell this is a lesser-used alias for Invoke-WebRequest but outside of
+Windows PowerShell curl is a popular native executable.  The only safe solution
+is to only replace aliases known to be the same across all OSes.  If there are
+aliases that don't get replaced, that's OK; it's better than accidentally breaking
+someone's script.
 #>
-function Get-AdditionalAliasesForCore {
+function Get-CoreSafeAliases {
   #region Function parameters
   [CmdletBinding()]
   param()
   #endregion
   process {
-    [hashtable]$MissingAliasMappings = @{}
-    $MissingAliasMappings.Add('ac','Add-Content')
-    $MissingAliasMappings.Add('asnp','Add-PSSnapIn')
-    $MissingAliasMappings.Add('cat','Get-Content')
-    $MissingAliasMappings.Add('cfs','ConvertFrom-String')
-    $MissingAliasMappings.Add('compare','Compare-Object')
-    $MissingAliasMappings.Add('cp','Copy-Item')
-    $MissingAliasMappings.Add('cpp','Copy-ItemProperty')
-    $MissingAliasMappings.Add('curl','Invoke-WebRequest')
-    $MissingAliasMappings.Add('diff','Compare-Object')
-    $MissingAliasMappings.Add('epsn','Export-PSSession')
-    $MissingAliasMappings.Add('gcb','Get-Clipboard')
-    $MissingAliasMappings.Add('gsnp','Get-PSSnapIn')
-    $MissingAliasMappings.Add('gsv','Get-Service')
-    $MissingAliasMappings.Add('gwmi','Get-WmiObject')
-    $MissingAliasMappings.Add('ipsn','Import-PSSession')
-    $MissingAliasMappings.Add('ise','powershell_ise.exe')
-    $MissingAliasMappings.Add('iwmi','Invoke-WMIMethod')
-    $MissingAliasMappings.Add('lp','Out-Printer')
-    $MissingAliasMappings.Add('ls','Get-ChildItem')
-    $MissingAliasMappings.Add('man','help')
-    $MissingAliasMappings.Add('mount','New-PSDrive')
-    $MissingAliasMappings.Add('mv','Move-Item')
-    $MissingAliasMappings.Add('npssc','New-PSSessionConfigurationFile')
-    $MissingAliasMappings.Add('ogv','Out-GridView')
-    $MissingAliasMappings.Add('ps','Get-Process')
-    $MissingAliasMappings.Add('rm','Remove-Item')
-    $MissingAliasMappings.Add('rmdir','Remove-Item')
-    $MissingAliasMappings.Add('rsnp','Remove-PSSnapin')
-    $MissingAliasMappings.Add('rujb','Resume-Job')
-    $MissingAliasMappings.Add('rwmi','Remove-WMIObject')
-    $MissingAliasMappings.Add('sasv','Start-Service')
-    $MissingAliasMappings.Add('scb','Set-Clipboard')
-    $MissingAliasMappings.Add('shcm','Show-Command')
-    $MissingAliasMappings.Add('sleep','Start-Sleep')
-    $MissingAliasMappings.Add('sort','Sort-Object')
-    $MissingAliasMappings.Add('spsv','Stop-Service')
-    $MissingAliasMappings.Add('start','Start-Process')
-    $MissingAliasMappings.Add('sujb','Suspend-Job')
-    $MissingAliasMappings.Add('swmi','Set-WMIInstance')
-    $MissingAliasMappings.Add('tee','Tee-Object')
-    $MissingAliasMappings.Add('trcm','Trace-Command')
-    $MissingAliasMappings.Add('wget','Invoke-WebRequest')
-    $MissingAliasMappings.Add('write','Write-Output')
-    $MissingAliasMappings
+    [hashtable]$Aliases = @{}
+    $Aliases.Add('?','Where-Object')
+    $Aliases.Add('%','ForEach-Object')
+    $Aliases.Add('cd','Set-Location')
+    $Aliases.Add('chdir','Set-Location')
+    $Aliases.Add('clc','Clear-Content')
+    $Aliases.Add('clear','Clear-Host')
+    $Aliases.Add('clhy','Clear-History')
+    $Aliases.Add('cli','Clear-Item')
+    $Aliases.Add('clp','Clear-ItemProperty')
+    $Aliases.Add('cls','Clear-Host')
+    $Aliases.Add('clv','Clear-Variable')
+    $Aliases.Add('cnsn','Connect-PSSession')
+    $Aliases.Add('copy','Copy-Item')
+    $Aliases.Add('cpi','Copy-Item')
+    $Aliases.Add('cvpa','Convert-Path')
+    $Aliases.Add('dbp','Disable-PSBreakpoint')
+    $Aliases.Add('del','Remove-Item')
+    $Aliases.Add('dir','Get-ChildItem')
+    $Aliases.Add('dnsn','Disconnect-PSSession')
+    $Aliases.Add('ebp','Enable-PSBreakpoint')
+    $Aliases.Add('echo','Write-Output')
+    $Aliases.Add('epal','Export-Alias')
+    $Aliases.Add('epcsv','Export-Csv')
+    $Aliases.Add('erase','Remove-Item')
+    $Aliases.Add('etsn','Enter-PSSession')
+    $Aliases.Add('exsn','Exit-PSSession')
+    $Aliases.Add('fc','Format-Custom')
+    $Aliases.Add('fhx','Format-Hex')
+    $Aliases.Add('fl','Format-List')
+    $Aliases.Add('foreach','ForEach-Object')
+    $Aliases.Add('ft','Format-Table')
+    $Aliases.Add('fw','Format-Wide')
+    $Aliases.Add('gal','Get-Alias')
+    $Aliases.Add('gbp','Get-PSBreakpoint')
+    $Aliases.Add('gc','Get-Content')
+    $Aliases.Add('gci','Get-ChildItem')
+    $Aliases.Add('gcm','Get-Command')
+    $Aliases.Add('gcs','Get-PSCallStack')
+    $Aliases.Add('gdr','Get-PSDrive')
+    $Aliases.Add('ghy','Get-History')
+    $Aliases.Add('gi','Get-Item')
+    $Aliases.Add('gjb','Get-Job')
+    $Aliases.Add('gl','Get-Location')
+    $Aliases.Add('gm','Get-Member')
+    $Aliases.Add('gmo','Get-Module')
+    $Aliases.Add('gp','Get-ItemProperty')
+    $Aliases.Add('gps','Get-Process')
+    $Aliases.Add('gpv','Get-ItemPropertyValue')
+    $Aliases.Add('group','Group-Object')
+    $Aliases.Add('gsn','Get-PSSession')
+    $Aliases.Add('gtz','Get-TimeZone')
+    $Aliases.Add('gu','Get-Unique')
+    $Aliases.Add('gv','Get-Variable')
+    $Aliases.Add('h','Get-History')
+    $Aliases.Add('history','Get-History')
+    $Aliases.Add('icm','Invoke-Command')
+    $Aliases.Add('iex','Invoke-Expression')
+    $Aliases.Add('ihy','Invoke-History')
+    $Aliases.Add('ii','Invoke-Item')
+    $Aliases.Add('ipal','Import-Alias')
+    $Aliases.Add('ipcsv','Import-Csv')
+    $Aliases.Add('ipmo','Import-Module')
+    $Aliases.Add('irm','Invoke-RestMethod')
+    $Aliases.Add('iwr','Invoke-WebRequest')
+    $Aliases.Add('kill','Stop-Process')
+    $Aliases.Add('md','mkdir')
+    $Aliases.Add('measure','Measure-Object')
+    $Aliases.Add('mi','Move-Item')
+    $Aliases.Add('move','Move-Item')
+    $Aliases.Add('mp','Move-ItemProperty')
+    $Aliases.Add('nal','New-Alias')
+    $Aliases.Add('ndr','New-PSDrive')
+    $Aliases.Add('ni','New-Item')
+    $Aliases.Add('nmo','New-Module')
+    $Aliases.Add('nsn','New-PSSession')
+    $Aliases.Add('nv','New-Variable')
+    $Aliases.Add('oh','Out-Host')
+    $Aliases.Add('popd','Pop-Location')
+    $Aliases.Add('pushd','Push-Location')
+    $Aliases.Add('pwd','Get-Location')
+    $Aliases.Add('r','Invoke-History')
+    $Aliases.Add('rbp','Remove-PSBreakpoint')
+    $Aliases.Add('rcjb','Receive-Job')
+    $Aliases.Add('rcsn','Receive-PSSession')
+    $Aliases.Add('rd','Remove-Item')
+    $Aliases.Add('rdr','Remove-PSDrive')
+    $Aliases.Add('ren','Rename-Item')
+    $Aliases.Add('ri','Remove-Item')
+    $Aliases.Add('rjb','Remove-Job')
+    $Aliases.Add('rmo','Remove-Module')
+    $Aliases.Add('rni','Rename-Item')
+    $Aliases.Add('rnp','Rename-ItemProperty')
+    $Aliases.Add('rp','Remove-ItemProperty')
+    $Aliases.Add('rsn','Remove-PSSession')
+    $Aliases.Add('rv','Remove-Variable')
+    $Aliases.Add('rvpa','Resolve-Path')
+    $Aliases.Add('sajb','Start-Job')
+    $Aliases.Add('sal','Set-Alias')
+    $Aliases.Add('saps','Start-Process')
+    $Aliases.Add('sbp','Set-PSBreakpoint')
+    $Aliases.Add('sc','Set-Content')
+    $Aliases.Add('select','Select-Object')
+    $Aliases.Add('set','Set-Variable')
+    $Aliases.Add('si','Set-Item')
+    $Aliases.Add('sl','Set-Location')
+    $Aliases.Add('sls','Select-String')
+    $Aliases.Add('sp','Set-ItemProperty')
+    $Aliases.Add('spjb','Stop-Job')
+    $Aliases.Add('spps','Stop-Process')
+    $Aliases.Add('sv','Set-Variable')
+    $Aliases.Add('type','Get-Content')
+    $Aliases.Add('where','Where-Object')
+    $Aliases.Add('wjb','Wait-Job')
+    $Aliases
   }
 }
 #endregion

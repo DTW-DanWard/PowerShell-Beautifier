@@ -12,7 +12,7 @@ Here's what happens at a high level:
 6. If the previous step completed successfully, writes the stream back to the temp file.  If *that* worked correctly, copies/overwrites temp file overwriting the source or the destination, if specified.
 
 ### Populate lookup hash tables
-The first time the module is loaded it finds all the valid lookup values currently in memory (cmdlet names, aliases, etc.) and then writes these to a cache file.  Finding all these values in memory takes a few seconds.  Thereafter when loading the module the cache file is used, increasing the performance.
+The first time the module is loaded it finds all the valid lookup values currently in memory (cmdlet names and functions) along with alias mapping values that are safe across OSes (for PowerShell Core)  and then writes these to a cache file.  Finding all these values in memory takes a few seconds.  Thereafter when loading the module the cache file is used, increasing the performance.
 
 The cache files can be regenerated at any time.  If you have a number of custom modules and/or 3rd-party modules that you use often, you may want to have the exported functions and aliases added to the cache file.  This is easy to do:
 1. Import all your custom and 3rd-party modules
@@ -98,7 +98,7 @@ Here are the lookup tables:
 
 | Lookup table name | Notes |
 | :--- | :--- |
-| ValidCommandNames | Commands, prepopulated with cmdlets, functions and aliases in memory. |
+| ValidCommandNames | Commands, prepopulated with cmdlets and functions in memory and aliases known to work across OSes (for PowerShell core). |
 | ValidCommandParameterNames | Parameter names, prepopulated with existing parameter names for all cmdlets and functions in memory. |
 | ValidAttributeNames | Parameter attribute names, like Alias, AllowNull, etc., prepopulated with attributes from PowerShell Language Specification Version 3.0 Chapter 12. |
 | ValidMemberNames | Method names, prepopulated with methods existing on common types used in PowerShell such as System.Management.Automation.ParameterAttribute, string, int, datetime, etc. See Get-ValidMemberNames for more info. |
