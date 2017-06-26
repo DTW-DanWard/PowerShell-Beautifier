@@ -60,6 +60,9 @@ function Initialize-ProcessVariables {
     # ouput clean script to standard output instead of source or destination path 
     [bool]$script:StandardOutput = $false
 
+    # if specified, override host line ending standard with CRLF or LF 
+    [string]$script:NewLine = $null
+
     # result content is created in a temp file; if no errors this becomes the result file
     [string]$script:DestinationPathTemp = $null
 
@@ -763,8 +766,17 @@ function Write-TokenContent_NewLine {
     [System.Management.Automation.PSToken]$Token
   )
   process {
-    # add NewLine using Windows standard to destination
-    Add-StringContentToDestinationFileStreamWriter ([environment]::NewLine)
+    # by default, we are using the newline standard of the host OS
+    [string]$NewLineToUse = [environment]::NewLine
+    # but check to see if user overrode it
+    if (($script:NewLine -ne $null) -and ($script:NewLine.Trim() -ne '')) {
+      if ($script:NewLine -eq 'CRLF') {
+        $NewLineToUse = "`r`n"
+      } else {
+        $NewLineToUse = "`n"
+      }
+    }
+    Add-StringContentToDestinationFileStreamWriter ($NewLineToUse)
   }
 }
 #endregion
@@ -1104,6 +1116,13 @@ If specified, does not output any status text.
 If specified, cleaned script is only written to stdout, not any file, and
 any errors will be written to stderror using concise format (not Write-Error).
 This option may be required for integrating with external editors.
+.PARAMETER NewLine
+If specified, allows user to override line ending type of the host OS.  By default
+the value of [environment]::NewLine is used for newline, by specifying parameter
+NewLine and passing either CRLF or LF, that will be used regardless of host OS.
+This is most handy for getting the test script to run on Core on all OSes (all the
+test files use CRLF) but could also be useful for beautifying on one platform while
+targeting another... or it could just to keep your build manager happy.
 .EXAMPLE
 Edit-DTWBeautifyScript -Source c:\P\S1.ps1 -Destination c:\P\S1_New.ps1
 Gets content from c:\P\S1.ps1, cleans and writes to c:\P\S1_New.ps1
@@ -1113,6 +1132,9 @@ Writes cleaned script results back into c:\P\S1.ps1
 .EXAMPLE
 dir c:\CodeFiles -Include *.ps1,*.psm1 -Recurse -IndentText "`t" | Edit-DTWBeautifyScript
 For each .ps1 and .psm1 file, cleans and rewrites back into same file using tabs.
+.EXAMPLE
+Edit-DTWBeautifyScript -SourcePath c:\P\S1.ps1 -NewLine CRLF
+Writes cleaned script results back into c:\P\S1.ps1 using Windows-style line endings.
 #>
 function Edit-DTWBeautifyScript {
   #region Function parameters
@@ -1128,7 +1150,10 @@ function Edit-DTWBeautifyScript {
     [string]$IndentText = '  ',
     [switch]$Quiet,
     [Alias('StdOut')]
-    [switch]$StandardOutput
+    [switch]$StandardOutput,
+    [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
+    [ValidateSet('CRLF','LF')]
+    [string]$NewLine
   )
   #endregion
   process {
@@ -1164,7 +1189,7 @@ function Edit-DTWBeautifyScript {
     }
     #endregion
 
-    #region Test IndentText and set script level variable
+    #region Test IndentText and set script-level variable
     # if user wants tabs for indents but passed '`t' they probably meant "`t" so change for them
     if ($IndentText -eq '`t') {
       $IndentText = "`t"
@@ -1173,13 +1198,19 @@ function Edit-DTWBeautifyScript {
     $script:IndentText = $IndentText
     #endregion
 
-    #region If StandardOutput specified then Quiet must be, too
+    #region If StandardOutput specified then Quiet must be, too; also script-level
     # if user has specified StandardOutput, all cleaned text will be returned via
     # stdout so no status messages can be sent to user so force Quiet
     if ($StandardOutput) {
       $Quiet = $true
       # also, make sure StandardOutput script-level variable (used in other functions) is updated
       $script:StandardOutput = $true
+    }
+    #endregion
+
+    #region Set NewLine script-level variable
+    if (($NewLine -ne $null) -and ($NewLine.Trim() -ne '')) {
+      $script:NewLine = $NewLine.ToUpper()
     }
     #endregion
     #endregion

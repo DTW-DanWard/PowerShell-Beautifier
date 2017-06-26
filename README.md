@@ -1,6 +1,6 @@
 # PowerShell Beautifier
 
-PowerShell Beautifier: a whitespace reformatter and code cleaner for PowerShell.
+A whitespace reformatter and code cleaner for Windows PowerShell and PowerShell Core (all OSes).
 
 ## Formatting Matters
 
@@ -34,6 +34,7 @@ The PowerShell Beautifier makes these changes:
 	* [Run on single file outputting to new file with 2 spaces indentation](#run-on-single-file-outputting-to-new-file-with-2-spaces-indentation)
 	* [Run on multiple files in a directory structure](#run-on-multiple-files-in-a-directory-structure)
     * [Get cleaned content via standard output rather than updating file](#get-cleaned-content-via-standard-output-rather-than-updating-file)
+    * [Use LF as newline no matter what the OS](#use-lf-as-newline-no-matter-what-the-os)
 * [Want to Know More](#want-to-know-more)
 * [Contributing](#contributing)
 * [Credits](#credits)
@@ -114,6 +115,16 @@ Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -StandardOutput
 ```
 
 When using -StandardOutput, the SourcePath is used for content but not updated, DestinationPath is ignored (if passed).  If an error occurs (syntax error in user script), no content is returned via stdout but stderr will have a concise error that can be displayed to the user.
+
+### Use LF as newline no matter what the OS
+By default, when writing the file the beautifier will use the host OS's style for newlines.  To override this, use -NewLine and pass either CRLF or LF.
+
+For example, to force newline endings to be LF
+```
+Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -NewLine LF
+```
+
+
 
 
 ## Want to Know More

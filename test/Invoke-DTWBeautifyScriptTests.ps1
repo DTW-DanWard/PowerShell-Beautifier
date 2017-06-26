@@ -248,10 +248,14 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
 
     try {
       #region Specify parameters for Edit-DTWBeautifyScript call
+      # note: we want to suppress output (Quiet) and we want to force newline to always be CRLF because
+      # the test files are written with CRLF; if this test script is run on a non-Windows machine it won't
+      # use CRLF by default and the tests will fail
       [hashtable]$Params = @{
         SourcePath = $InputBadPath
         DestinationPath = $OutputTestPath
         Quiet = $true
+        NewLine = "CRLF"
       }
       # if $IndentText passed, add that to params
       if ($IndentText -ne $null) {

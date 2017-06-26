@@ -7,4 +7,5 @@
 ## v 1.0.4 - Issue #13 Add space after . when dot-sourcing a command
 ## v 1.0.5 - Issue #7 and #16 - missing aliases across OSes
 ## v 1.0.6 - Issue #7 Core - only support known safe cross-OS aliases
-             Tested on Windows PowerShell, (Windows OS) PowerShell Core, Ubuntu 16.04 (Docker image)
+## Tested on Windows PowerShell, (Windows OS) PowerShell Core, Ubuntu 16.04 (Docker image)
+## v 1.0.7 - Issue #12 Override host line-ending (need for running test script on Core non-Windows OS)
