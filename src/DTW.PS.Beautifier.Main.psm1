@@ -473,7 +473,17 @@ function Copy-SourceContentToDestinationStream {
       #endregion
 
       # write the content of the token to the destination stream
-      Write-TokenContentByType -SourceTokenIndex $i
+      [int]$lastTokenIndex = ($SourceTokens.Count - 1)
+      if($i -eq $lastTokenIndex -and $SourceTokens[$i].Type -eq 'NewLine') {
+        Write-TokenContent_NewLine
+      }
+      elseif($i -eq $lastTokenIndex) {
+        Write-TokenContentByType -SourceTokenIndex $i
+        Write-TokenContent_NewLine
+      }
+      else {
+        Write-TokenContentByType -SourceTokenIndex $i
+      }
 
       #region Add space after writing token
       if ($true -eq (Test-AddSpaceFollowingToken -TokenIndex $i)) {
@@ -762,7 +772,7 @@ function Write-TokenContent_Member {
 function Write-TokenContent_NewLine {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory = $true,ValueFromPipeline = $false)]
+    [Parameter(ValueFromPipeline = $false)]
     [System.Management.Automation.PSToken]$Token
   )
   process {
@@ -1041,6 +1051,10 @@ function Test-AddSpaceFollowingToken {
     # This is for switch params that are programmatically specified with a variable, such as:
     #   dir -Recurse:$CheckSubFolders
     if ($SourceTokens[$TokenIndex].Type -eq 'CommandParameter' -and $SourceTokens[$TokenIndex].Content[-1] -eq ':') { return $false }
+    #endregion
+
+    #region Don't add space at end of file
+    if ($TokenIndex -eq ($SourceTokens.Count - 1)) { return $false }
     #endregion
 
     # return $true indicating add a space
