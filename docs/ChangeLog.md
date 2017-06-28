@@ -9,3 +9,4 @@
 ## v 1.0.6 - Issue #7 Core - only support known safe cross-OS aliases
 ## Tested on Windows PowerShell, (Windows OS) PowerShell Core, Ubuntu 16.04 (Docker image)
 ## v 1.0.7 - Issue #12 Override host line-ending (need for running test script on Core non-Windows OS)
+## v 1.0.8 - Issue #16 Ensure file always ends with NewLine

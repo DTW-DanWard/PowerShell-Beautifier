@@ -1,4 +1,4 @@
-﻿@{ ModuleVersion         = '1.0.7'
+﻿@{ ModuleVersion         = '1.0.8'
    Author                = 'Dan Ward'
    CompanyName           = 'DTWConsulting.com'
    Copyright             = 'Copyright 2012-2017 Dan Ward. All rights reserved.'
