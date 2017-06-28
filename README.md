@@ -18,6 +18,7 @@ Here's a simpler pic focusing on the alias-replacement and casing changes:
 The PowerShell Beautifier makes these changes:
 * properly indents code inside {}, [], () and $() groups
 * cleans/rearranges all whitespace within a line
+* ends files with a new line
 * replaces aliases with the command names: dir → Get-ChildItem
 * fixes command name casing: get-childitem → Get-ChildItem
 * fixes parameter name casing: Test-Path -path → Test-Path -Path

@@ -485,6 +485,10 @@ function Copy-SourceContentToDestinationStream {
       if ($SourceTokens[$i].Type -eq 'GroupStart') { $CurrentIndent += 1 }
       #endregion
     }
+    # check if last token in file was a newline; if it wasn't add one
+    if ($SourceTokens[$SourceTokens.Count - 1].Type -ne 'NewLine') {
+      Write-NewLine
+    }
   }
 }
 #endregion
@@ -766,6 +770,21 @@ function Write-TokenContent_NewLine {
     [System.Management.Automation.PSToken]$Token
   )
   process {
+    Write-NewLine
+  }
+}
+
+# Write-NewLine functionality is broken out to it's own function because
+# it is also called outside of when tokens are processed (at the end of the file)
+# and there's no token to pass.  I'd prefer to keep all the Write-TokenContent_*
+# functions with the same parameter signature (token is mandatory) in case the way
+# those functions are called changes.  So rather than passing a junk token to
+# Write-TokenContent_NewLine (which doesn't even use it, but it still seems hacky)
+# let's break out Write-NewLine to it's own function with no required param.
+function Write-NewLine {
+  [CmdletBinding()]
+  param()
+  process {
     # by default, we are using the newline standard of the host OS
     [string]$NewLineToUse = [environment]::NewLine
     # but check to see if user overrode it
@@ -1041,6 +1060,10 @@ function Test-AddSpaceFollowingToken {
     # This is for switch params that are programmatically specified with a variable, such as:
     #   dir -Recurse:$CheckSubFolders
     if ($SourceTokens[$TokenIndex].Type -eq 'CommandParameter' -and $SourceTokens[$TokenIndex].Content[-1] -eq ':') { return $false }
+    #endregion
+
+    #region Don't add space at end of file
+    if ($TokenIndex -eq ($SourceTokens.Count - 1)) { return $false }
     #endregion
 
     # return $true indicating add a space
