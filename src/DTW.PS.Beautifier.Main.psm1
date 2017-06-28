@@ -473,17 +473,7 @@ function Copy-SourceContentToDestinationStream {
       #endregion
 
       # write the content of the token to the destination stream
-      [int]$lastTokenIndex = ($SourceTokens.Count - 1)
-      if($i -eq $lastTokenIndex -and $SourceTokens[$i].Type -eq 'NewLine') {
-        Write-TokenContent_NewLine
-      }
-      elseif($i -eq $lastTokenIndex) {
-        Write-TokenContentByType -SourceTokenIndex $i
-        Write-TokenContent_NewLine
-      }
-      else {
-        Write-TokenContentByType -SourceTokenIndex $i
-      }
+      Write-TokenContentByType -SourceTokenIndex $i
 
       #region Add space after writing token
       if ($true -eq (Test-AddSpaceFollowingToken -TokenIndex $i)) {
@@ -494,6 +484,10 @@ function Copy-SourceContentToDestinationStream {
       #region Add indents after writing GroupStart
       if ($SourceTokens[$i].Type -eq 'GroupStart') { $CurrentIndent += 1 }
       #endregion
+    }
+    # check if last token in file was a newline; if it wasn't add one
+    if ($SourceTokens[$SourceTokens.Count - 1].Type -ne 'NewLine') {
+      Write-NewLine
     }
   }
 }
@@ -772,9 +766,24 @@ function Write-TokenContent_Member {
 function Write-TokenContent_NewLine {
   [CmdletBinding()]
   param(
-    [Parameter(ValueFromPipeline = $false)]
+    [Parameter(Mandatory = $true,ValueFromPipeline = $false)]
     [System.Management.Automation.PSToken]$Token
   )
+  process {
+    Write-NewLine
+  }
+}
+
+# Write-NewLine functionality is broken out to it's own function because
+# it is also called outside of when tokens are processed (at the end of the file)
+# and there's no token to pass.  I'd prefer to keep all the Write-TokenContent_*
+# functions with the same parameter signature (token is mandatory) in case the way
+# those functions are called changes.  So rather than passing a junk token to
+# Write-TokenContent_NewLine (which doesn't even use it, but it still seems hacky)
+# let's break out Write-NewLine to it's own function with no required param.
+function Write-NewLine {
+  [CmdletBinding()]
+  param()
   process {
     # by default, we are using the newline standard of the host OS
     [string]$NewLineToUse = [environment]::NewLine
