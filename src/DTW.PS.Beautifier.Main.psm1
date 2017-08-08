@@ -458,6 +458,7 @@ function Copy-SourceContentToDestinationStream {
       #region Add indent to beginning of line
       # if last character was a NewLine or LineContinuation and current one isn't 
       # a NewLine nor a groupend, add indent prefix
+      # with one exception - if it's cmdlet/function help text (Type=Comment with SYNOPSIS in text)
       if ($i -gt 0 -and ($SourceTokens[$i - 1].Type -eq 'NewLine' -or $SourceTokens[$i - 1].Type -eq 'LineContinuation') `
            -and $SourceTokens[$i].Type -ne 'NewLine') {
 
@@ -465,8 +466,8 @@ function Copy-SourceContentToDestinationStream {
         # if last token was a LineContinuation, add an extra (one-time) indent
         # so indent lines continued (say cmdlet with many params)
         if ($SourceTokens[$i - 1].Type -eq 'LineContinuation') { $IndentToUse += 1 }
-        # add the space prefix
-        if ($IndentToUse -gt 0) {
+        # add the space prefix - unless it's a cmdlet/function help text
+        if ($IndentToUse -gt 0 -and (!($SourceTokens[$i].Type -eq 'Comment' -and $SourceTokens[$i].Content.ToUpper().Contains('.SYNOPSIS')))) {
           Add-StringContentToDestinationFileStreamWriter ($IndentText * $IndentToUse)
         }
       }

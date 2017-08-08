@@ -10,3 +10,4 @@
 ## Tested on Windows PowerShell, (Windows OS) PowerShell Core, Ubuntu 16.04 (Docker image)
 ## v 1.0.7 - Issue #12 Override host line-ending (need for running test script on Core non-Windows OS)
 ## v 1.0.8 - Issue #16 Ensure file always ends with NewLine
+## v 1.0.9 - Issue #18 Do not indent function help descriptions when inside function definition
