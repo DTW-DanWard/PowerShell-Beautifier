@@ -19,12 +19,12 @@ Here's another diff viewer showing only alias-replacement and casing changes:
 The PowerShell Beautifier makes these changes:
 * properly indents code inside {}, [], () and $() groups
 * cleans/rearranges all whitespace within a line
-* replaces aliases with the command names: dir → Get-ChildItem
-* fixes command name casing: get-childitem → Get-ChildItem
-* fixes parameter name casing: Test-Path -path → Test-Path -Path
+* replaces aliases with the command names: ```dir → Get-ChildItem```
+* fixes command name casing: ```get-childitem → Get-ChildItem```
+* fixes parameter name casing: ```Test-Path -path → Test-Path -Path```
 * fixes [type] casing
-	* changes all PowerShell shortcuts to lower: [STRING] → [string]
-	* changes other types (if in memory): [system.exception] → [System.Exception]
+	* changes all PowerShell shortcuts to lower: ```[STRING] → [string]```
+	* changes other types (if in memory): ```[system.exception] → [System.Exception]```
 * ensures file ends with a new line.
 
 
