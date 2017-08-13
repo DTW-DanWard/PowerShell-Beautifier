@@ -25,7 +25,7 @@ The PowerShell Beautifier makes these changes:
 * fixes [type] casing
 	* changes all PowerShell shortcuts to lower: [STRING] → [string]
 	* changes other types (if in memory): [system.exception] → [System.Exception]
-* ensures file end with a new line.
+* ensures file ends with a new line.
 
 
 ## Table of Contents
