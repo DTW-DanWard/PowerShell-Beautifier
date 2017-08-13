@@ -6,25 +6,26 @@ A whitespace reformatter and code cleaner for Windows PowerShell and PowerShell 
 
 Tabs or spaces; spaces or tabs?  If spaces, how many?  We sure do take whitespace seriously.  But when writing *commit-worthy* PowerShell code, there's more than just whitespace to think about.  Shouldn't you use cmdlet names instead of aliases?  And shouldn't you have correct casing for cmdlets, methods and types?  Especially if you want to support PowerShell Core...?
 
-PowerShell Beautifier is a PowerShell command-line utility for cleaning and reformatting PowerShell script files, written in PowerShell.  Sure, it will change all indentation to tabs or spaces for you - but it will do more than just that.  A picture is worth 1KB words; here's a before/after showing all types of changes including spaces & tabs:
+PowerShell Beautifier is a PowerShell command-line utility for cleaning and reformatting PowerShell script files, written in PowerShell.  Sure, it will change all indentation to tabs or spaces for you - but it will do more than just that.  A picture is worth 1KB words; here's a before/after in VS Code:
+![Before and after - casing](docs/BeforeAfterVSCode.png)
 
+Here are the changes in a diff viewer:
 ![Before and after - casing](docs/Compare_Whitespace.png)
 
-Here's a simpler pic focusing on the alias-replacement and casing changes:
-
+Here's another diff viewer showing only alias-replacement and casing changes:
 ![Before and after - whitespace](docs/Compare_CaseChanges.png)
 
 
 The PowerShell Beautifier makes these changes:
 * properly indents code inside {}, [], () and $() groups
 * cleans/rearranges all whitespace within a line
-* ends files with a new line
 * replaces aliases with the command names: dir → Get-ChildItem
 * fixes command name casing: get-childitem → Get-ChildItem
 * fixes parameter name casing: Test-Path -path → Test-Path -Path
 * fixes [type] casing
 	* changes all PowerShell shortcuts to lower: [STRING] → [string]
 	* changes other types (if in memory): [system.exception] → [System.Exception]
+* ensures file end with a new line.
 
 
 ## Table of Contents
