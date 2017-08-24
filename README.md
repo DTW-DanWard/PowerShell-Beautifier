@@ -66,7 +66,8 @@ SYNOPSIS
 
 
 SYNTAX
-    Edit-DTWBeautifyScript [-SourcePath] <String> [[-DestinationPath] <String>] [[-IndentText] <String>] [-Quiet]
+    Edit-DTWBeautifyScript [-SourcePath] <String> [[-DestinationPath] <String>] [[-IndentText] <String>]
+    [-StandardOutput] [[-NewLine] <String>] [<CommonParameters>]
     [<CommonParameters>]
 
 ...more text...
@@ -135,7 +136,7 @@ Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -NewLine LF
 * [How to test and add test cases](docs/Testing.md)
 * [Help add support for text editors](docs/ExternalEditors.md) like Atom and others
 * [Project roadmap](docs/Roadmap.md) - enhancements, external editors, BOM/encoding functions and more
-* [Change Log](docs/ChangeLog.md)
+* [Change log](docs/ChangeLog.md)
 
 
 ## Contributing

@@ -20,7 +20,9 @@ Skips reloading the DTW.PS.Beautifier module.  If you aren't making beautifier
 code changes but have made changes to the input bad and/or output correct files
 and want to quickly retest without reloading module, specify this.
 .PARAMETER Quiet
-Only output text if errors are found.
+If specified:
+ - only output text if errors are found
+ - when terminating script, return $true if all tests passed else $false
 #>
 
 #region Script parameters
@@ -39,7 +41,7 @@ Set-StrictMode -Version 2
 <#
 Some additional notes:
 
-First off - if you are reading this: THANK YOU for helping out with this project!
+First off - if you are reading this: THANK YOU for your interest in this project!
 
 There are 3 folders to know about:
 1_Input_Bad - in the repo.  Has example of files with bad formatting to be fixed.
@@ -164,7 +166,7 @@ function Invoke-DTWFileDiff {
     } else {
       $File1Content = Get-Content -Path $Path1 -Encoding (Get-DTWFileEncodingSystemProviderNameFromTypeName -Name ((Get-DTWFileEncoding $Path1).EncodingName))
       $File2Content = Get-Content -Path $Path2 -Encoding (Get-DTWFileEncodingSystemProviderNameFromTypeName -Name ((Get-DTWFileEncoding $Path2).EncodingName))
-      Compare-Object $File1Content $File2Content -CaseSensitive | ForEach-Object { Write-Host "        $($_.InputObject + '   ' + $_.SideIndicator)" }
+      Compare-Object $File1Content $File2Content -CaseSensitive | ForEach-Object { Write-Output "        $($_.InputObject + '   ' + $_.SideIndicator)" }
     }
   }
 }
@@ -248,13 +250,12 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
 
     try {
       #region Specify parameters for Edit-DTWBeautifyScript call
-      # note: we want to suppress output (Quiet) and we want to force newline to always be CRLF because
-      # the test files are written with CRLF; if this test script is run on a non-Windows machine it won't
-      # use CRLF by default and the tests will fail
+      # note: we want to force newline to always be CRLF because the test files are written
+      # with CRLF; if this test script is run on a non-Windows machine it won't use CRLF by
+      # default and the tests will fail
       [hashtable]$Params = @{
         SourcePath = $InputBadPath
         DestinationPath = $OutputTestPath
-        Quiet = $true
         NewLine = "CRLF"
       }
       # if $IndentText passed, add that to params
@@ -262,25 +263,22 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
         $Params.IndentText = $IndentText
       }
       # finally: take the source file, run through beautifier and output in test folder
-      if (!$Quiet) { Write-Host ('  File: ' + (Split-Path -Path $InputBadPath -Leaf)) -NoNewline }
+      if (!$Quiet) { Write-Output ('  File: ' + (Split-Path -Path $InputBadPath -Leaf)) }
       #endregion
 
       Edit-DTWBeautifyScript @Params
 
       # compare result in test folder with correct folder
-      if ($true -eq (Compare-DTWFilesIncludingBOM -Path1 $OutputTestPath -Path2 $OutputCorrectPath)) {
-        if (!$Quiet) { Write-Host (' - correct!') }
-      } else {
-        $script:TestFailed = $true
-        if (!$Quiet) { Write-Host (' - failed!') }
-        Write-Host '    Files do not match. Opening diff of these files:'
-        Write-Host "      $OutputTestPath"
-        Write-Host "      $OutputCorrectPath"
+      if ($false -eq (Compare-DTWFilesIncludingBOM -Path1 $OutputTestPath -Path2 $OutputCorrectPath)) {
+        $script:AllTestsPassed = $false
+        Write-Output '    Files do not match. Opening diff of these files:'
+        Write-Output "      $OutputTestPath"
+        Write-Output "      $OutputCorrectPath"
         Invoke-DTWFileDiff -Path1 $OutputTestPath -Path2 $OutputCorrectPath
       }
     } catch {
-      Write-Host 'An error occurred during processing files'
-      Write-Host $_
+      Write-Output 'An error occurred during processing files'
+      Write-Output $_
     }
   }
 }
@@ -307,16 +305,16 @@ if ($false -eq (Test-Path -Path $ModulePath)) {
 }
 # if module not loaded at all, load now
 if ($null -eq (Get-Module -Name $ModuleName)) {
-  if (!$Quiet) { Write-Host "Importing beautifier module: $ModuleName" }
+  if (!$Quiet) { Write-Output "Importing beautifier module: $ModuleName" }
   Import-Module $ModulePath
 } else {
   # if doing development on the module, it is safest to force a reload of the module
   # each time the test script is run; by default we will do this unless the user
   # specified -SkipModuleReload - which makes sense if a user is only modified test files
   if ($SkipModuleReload) {
-    if (!$Quiet) { Write-Host 'Skipping beautifier module reload' }
+    if (!$Quiet) { Write-Output 'Skipping beautifier module reload' }
   } else {
-    if (!$Quiet) { Write-Host 'Reloading beautifier module' }
+    if (!$Quiet) { Write-Output 'Reloading beautifier module' }
     # use -Force to make sure reloaded if already in memory
     Import-Module $ModulePath -Force
   }
@@ -347,8 +345,8 @@ if ($false -eq (Test-Path -Path $RootOutputTestFolderPath)) {
 }
 #endregion
 
-
-[bool]$TestFailed = $false
+# assume all tests passed, set to false (in Test-DTWProcessFileCompareOutputTestCorrect) if one fails
+[bool]$AllTestsPassed = $true
 
 #region Main folder processing
 # $IndentationTestFileName is the name of the test file specifically used for 
@@ -370,7 +368,7 @@ $IndentationTestFileName = 'Indentation.ps1'
 # loop through all specified test folders
 $TestFolders | ForEach-Object {
   $FolderName = $_
-  if (!$Quiet) { Write-Host ("Processing folder: $FolderName") }
+  if (!$Quiet) { Write-Output ("Processing folder: $FolderName") }
 
   # process a single source folder
   $InputBadFolderPath = Join-Path -Path $RootInputBadFolderPath -ChildPath $FolderName
@@ -429,12 +427,15 @@ if ($TestFolders -contains 'Whitespace') {
 #endregion
 
 
-#region Success message if all tests passed, who cares if Quiet or not!
-if ($false -eq $TestFailed) {
-  # write message regardless of Quiet or not
-  Write-Host "`nAll tests passed - woo-hoo!`n" -ForegroundColor Cyan
+#region Output success/failure message or, if Quiet, return $true if all passed else $false
+if ($Quiet) {
+  # return $true if all tests passed, false otherwise
+  $AllTestsPassed
 } else {
-  # write message regardless of Quiet or not
-  Write-Host "`nTest failed!`n" -ForegroundColor Cyan
+  if ($true -eq $AllTestsPassed) {
+    Write-Output "`nAll tests passed - woo-hoo!`n"
+  } else {
+    Write-Output "`nTest failed!`n"
+  }
 }
 #endregion

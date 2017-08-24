@@ -53,10 +53,6 @@ function Initialize-ProcessVariables {
     # indent text, value is overridden with param
     [string]$script:IndentText = ''
 
-    # you may notice there is no module level / process variable for Quiet; that is because it is
-    # currently only used directly within Edit-DTWBeautifyScript itself; if it is ever used outside
-    # that function it will have to be included here
-
     # ouput clean script to standard output instead of source or destination path 
     [bool]$script:StandardOutput = $false
 
@@ -1134,8 +1130,6 @@ in place.
 .PARAMETER IndentText
 String step to use when indenting.  Default is two spaces, specify tabs
 by passing: "`t"
-.PARAMETER Quiet
-If specified, does not output any status text.
 .PARAMETER StandardOutput
 If specified, cleaned script is only written to stdout, not any file, and
 any errors will be written to stderror using concise format (not Write-Error).
@@ -1172,7 +1166,6 @@ function Edit-DTWBeautifyScript {
     [string]$DestinationPath,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [string]$IndentText = '  ',
-    [switch]$Quiet,
     [Alias('StdOut')]
     [switch]$StandardOutput,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
@@ -1222,14 +1215,8 @@ function Edit-DTWBeautifyScript {
     $script:IndentText = $IndentText
     #endregion
 
-    #region If StandardOutput specified then Quiet must be, too; also script-level
-    # if user has specified StandardOutput, all cleaned text will be returned via
-    # stdout so no status messages can be sent to user so force Quiet
-    if ($StandardOutput) {
-      $Quiet = $true
-      # also, make sure StandardOutput script-level variable (used in other functions) is updated
-      $script:StandardOutput = $true
-    }
+    #region Set script-level variable StandardOutput
+    $script:StandardOutput = $StandardOutput
     #endregion
 
     #region Set NewLine script-level variable
@@ -1302,7 +1289,7 @@ function Edit-DTWBeautifyScript {
     #endregion
 
     #region Read source script content content into memory
-    if (!$Quiet) { Write-Host "Reading source: $SourcePath" }
+    Write-Verbose -Message "Reading source: $SourcePath"
     $Err = $null
     Import-ScriptContent -EV $Err
     # if an error occurred importing content, it will be written from Import-ScriptContent
@@ -1312,7 +1299,7 @@ function Edit-DTWBeautifyScript {
 
     #region Tokenize source script content
     $Err = $null
-    if (!$Quiet) { Write-Host 'Tokenizing script content' }
+    Write-Verbose -Message 'Tokenizing script content'
     Invoke-TokenizeSourceScriptContent -EV Err
     # if an error occurred tokenizing content, reset the process variables to clean up and then just return
     # if StandardOutput not specified, Invoke-TokenizeSourceScriptContent will Write-Error so $Err will have contents 
@@ -1339,7 +1326,7 @@ function Edit-DTWBeautifyScript {
       $script:DestinationStreamWriter = New-Object System.IO.StreamWriter $DestinationPathTemp,$false,$SourceFileEncoding
       #endregion
       # create new tokens for destination script content
-      if (!$Quiet) { Write-Host 'Migrate source content to destination format' }
+      Write-Verbose -Message 'Migrate source content to destination format'
       Copy-SourceContentToDestinationStream
     } catch {
       if ($StandardOutput -eq $true) {
@@ -1351,7 +1338,7 @@ function Edit-DTWBeautifyScript {
       return
     } finally {
       #region Flush and close file stream writer; either copy temp file to destination or to stdout
-      if (!$Quiet) { Write-Host "Write destination file: $script:DestinationPath" }
+      Write-Verbose -Message "Write destination file: $script:DestinationPath"
       if ($null -ne $script:DestinationStreamWriter) {
         $script:DestinationStreamWriter.Flush()
         $script:DestinationStreamWriter.Close()
@@ -1371,7 +1358,7 @@ function Edit-DTWBeautifyScript {
         }
       }
       #endregion
-      if (!$Quiet) { Write-Host ("Finished in {0:0.000} seconds.`n" -f ((Get-Date) - $StartTime).TotalSeconds) }
+      Write-Verbose -Message ("Finished in {0:0.000} seconds.`n" -f ((Get-Date) - $StartTime).TotalSeconds)
     }
   }
 }
