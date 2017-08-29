@@ -3,9 +3,10 @@
 ## Near-term
 
 Here's a tentative roadmap:
-* Fix any immediate pressing issues.
-* [Add support for text editors](ExternalEditors.md) - Atom, Sublime, VS Code, what else?
-* Add configuration for better whitespace control.
+* Done - Fix any immediate pressing issues.
+* Done - [Add support for text editors.](ExternalEditors.md) Support via file system and StandardOutput; additional editor support available upon request.
+* In process - automate testing on Core: Docker containers (other OSes) and Windows.
+* Add JSON config file for fine-grained, user-controllable whitespace configuration.
 * Move Byte Order Mark / encoding functions to new separate project (a number of useful functions for handling BOM/BOM-less files were created for the PS Beautifier).
 * Add PowerShell-Beautifier to package managers.
 
