@@ -5,6 +5,7 @@
 # Move everything to functions
 
 # Move get container names to function
+# ?make sure /tmp exists in container with Test-Path
 # Output parameter / run info at top of script
 # Add parameter for Quiet option, returns $true or $false
 #   batch info to output in case of error?
@@ -58,13 +59,14 @@ function Out-ErrorInfo {
     [object[]]$Parameters,
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [object]$ErrorInfo
+    [object[]]$ErrorInfo
   )
   #endregion
   process {
     Write-Output "Error occurred running this command:"
-    Write-Output "  $Cmd $Params"
-    Write-Output "Error is: $ErrorInfo"
+    Write-Output "  $Command $Parameters"
+    Write-Output "Error info:"
+    $ErrorInfo | ForEach-Object { Write-Output $_.ToString() }
   }
 }
 #endregion
@@ -156,16 +158,57 @@ function Confirm-DockerInstalled {
 #endregion
 
 
-
-
+#region Function: Copy-FilesToDockerContainer
+<#
+.SYNOPSIS
+Copies $SourcePaths files to local container $ContainerName
+.DESCRIPTION
+Copies all $SourcePaths files to local container $ContainerName putting
+files under folder $ContainerTestFolderPath
+.PARAMETER ContainerName
+Name of container to copy files to.
+.EXAMPLE
+Copy-FilesToDockerContainer MyContainer
+# copies files from $SourcePaths local container named MyContainer under path $ContainerTestFolderPath
+#>
+function Copy-FilesToDockerContainer {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerName
+  )
+  #endregion
+  process {
+    Write-Output "  Copying source content to container under $ContainerTestFolderPath"
+    try {
+      # for each source file path, copy to docker container
+      $SourcePaths | ForEach-Object {
+        $SourcePath = $_
+        Write-Output "    $SourcePath"
+        $Cmd = "docker"
+        $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerTestFolderPath))
+        $Results = & $Cmd $Params 2>&1
+        if ($? -eq $false -or $LastExitCode -ne 0) {
+          Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+        }
+      }
+    }
+    catch {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+    }
+  }
+}
+#endregion
 
 
 #region Function: Get-DockerContainerStatus
 <#
 .SYNOPSIS
-Returns docker container info as PSObjects
+Returns all local docker container info as PSObjects
 .DESCRIPTION
-Returns docker container info (ps -a) as PSObjects with these properties:
+Returns all local docker container info as PSObjects with these properties:
 ContainerId, Name, Image, Status
 If error occurs, reports error and exits script.
 .EXAMPLE
@@ -209,11 +252,194 @@ function Get-DockerContainerStatus {
 #endregion
 
 
+#region Function: Get-DockerImageStatus
+<#
+.SYNOPSIS
+Returns local docker image info as PSObjects for repository $DockerHubRepository
+.DESCRIPTION
+Returns local docker image info (images -a) as PSObjects with these properties:
+ContainerId, Name, Image, Status
+If error occurs, reports error and exits script.
+.EXAMPLE
+Get-DockerImageStatus | Format-Table
+
+Repository           Tag         ImageId      Size   CreatedSince
+----------           ---         -------      ----   ------------
+microsoft/powershell ubuntu16.04 1c33de461473 365MB  2 months ago
+#>
+function Get-DockerImageStatus {
+  process {
+    # regex to extract 5 items from docker format output
+    $Pattern = "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
+    $ImageInfo = $null
+    try {
+      $Cmd = "docker"
+      $Params = @("images", $DockerHubRepository, "--format", "{{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.Size}}`t{{.CreatedSince}}")
+      $Results = & $Cmd $Params 2>&1
+      if ($? -eq $false -or $LastExitCode -ne 0) {
+        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+        exit
+      }
+      # now parse results to get individual properties
+      $ImageInfo = $Results | ForEach-Object {
+        $Match = Select-String -InputObject $_ -Pattern $Pattern
+        New-Object PSObject -Property ([ordered]@{
+            Repository   = $Match.Matches.Groups[1].Value
+            Tag          = $Match.Matches.Groups[2].Value
+            ImageId      = $Match.Matches.Groups[3].Value
+            Size         = $Match.Matches.Groups[4].Value
+            CreatedSince = $Match.Matches.Groups[5].Value
+          })
+        }
+      $ImageInfo
+    }
+    catch {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+      exit
+    }
+  }
+}
+#endregion
 
 
+#region Function: Invoke-TestScriptInContainer
+<#
+.SYNOPSIS
+Executes script on local container
+.DESCRIPTION
+Executes script $ContainerTestFilePath on container $ContainerName at path $ContainerTestFolderPath
+If error occurs, reports error and exits script.
+.PARAMETER ContainerName
+Name of container to use.
+.EXAMPLE
+Invoke-TestScriptInContainer MyContainer
+# Executes script $ContainerTestFilePath on container MyContainer at path $ContainerTestFolderPath
+#>
+function Invoke-TestScriptInContainer {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerName
+  )
+  #endregion
+  process {
+    Write-Output "  Running test script on container"
+    try {
+      $Cmd = "docker"
+      $ScriptInContainerToRunTestText = Join-Path -Path $ContainerTestFolderPath -ChildPath $ContainerTestFilePath
+      #region A handy tip
+      # if you are reading this script, this next bit contains the biggest gotcha I encountered when
+      # writing the docker commands to run in PowerShell. if you were to type a docker execute command
+      # in a PowerShell window to execute a PowerShell script in the container, it would look like this:
+      #   docker exec containername powershell -Command { /SomeScript.ps1 }
+      # the gotcha is that, when converting this to a string command with array of parameters
+      # to pass to the call operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 "
+      # as a scriptblock first; if you try passing it in as a string it will not execute no matter how
+      # you format it.
+      #endregion
+      [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptInContainerToRunTestText)
+      $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToRunTest)
+      $Results = & $Cmd $Params 2>&1
+      # when used with the -Quiet param my test script is designed to return ONLY $true if everything
+      # worked. so if any error occurred or if some type of error message is returned (i.e. anything other
+      # than $true) call it an error and report results
+      if ($? -eq $false -or $LastExitCode -ne 0 -or $Results -ne $true) {
+        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+      } else {
+        Write-Output "    Test script completed successfully"
+      }
+    }
+    catch {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+      exit
+    }
+  }
+}
+#endregion
 
 
+#region Function: Start-DockerContainer
+<#
+.SYNOPSIS
+Starts local container
+.DESCRIPTION
+Starts local container. If error occurs, reports error and exits script.
+.PARAMETER ContainerName
+Name of container to start.
+.EXAMPLE
+Start-DockerContainer MyContainer
+# starts local container named MyContainer
+#>
+function Start-DockerContainer {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerName
+  )
+  #endregion
+  process {
+    Write-Output "  Starting container"
+    try {
+      $Cmd = "docker"
+      $Params = @("start", $ContainerName)
+      $Results = & $Cmd $Params 2>&1
+      if ($? -eq $false -or $LastExitCode -ne 0) {
+        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+        exit
+      }
+    }
+    catch {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+      exit
+    }
+  }
+}
+#endregion
 
+
+#region Function: Stop-DockerContainer
+<#
+.SYNOPSIS
+Stops local container
+.DESCRIPTION
+Stops local container. If error occurs, reports error and exits script.
+.PARAMETER ContainerName
+Name of container to stop.
+.EXAMPLE
+Stop-DockerContainer MyContainer
+# stops local container named MyContainer
+#>
+function Stop-DockerContainer {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerName
+  )
+  #endregion
+  process {
+    Write-Output "  Stopping container"
+    try {
+      $Cmd = "docker"
+      $Params = @("stop", $ContainerName)
+      $Results = & $Cmd $Params 2>&1
+      if ($? -eq $false -or $LastExitCode -ne 0) {
+        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+        exit
+      }
+    }
+    catch {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+      exit
+    }
+  }
+}
+#endregion
 
 #endregion
 
@@ -221,13 +447,16 @@ function Get-DockerContainerStatus {
 
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
+# There are some exceptions: if an error occurs in Copy-FilesToDockerContainer or 
+# Invoke-TestScriptInContainer, the script does not exit so processing can continue i.e.
+# the container will be stopped.
 
 Confirm-DockerInstalled
 
-# confirm $DockerHubRepository is <team name>/<project name>
+# confirm script parameter $DockerHubRepository is <team name>/<project name>
 Confirm-DockerHubRepositoryFormatCorrect
 
-# get Docker image names and other details from Docker hub project tags (format PSObjects)
+# get Docker image names and other details from Docker hub project tags data (format PSObjects)
 $ImageTagsDataContent = Get-DockerHubProjectTagInfo
 
 
@@ -275,19 +504,15 @@ if ($TestImageTagNames.Count -eq 0) {
 #endregion
 
 
-#region Get local images for $DockerHubRepository
-$Pattern = "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-$LocalDockerRepositoryImages = docker images $DockerHubRepository --format "{{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.Size}}`t{{.CreatedSince}}" | ForEach-Object {
-  $Match = Select-String -InputObject $_ -Pattern $Pattern
-  New-Object PSObject -Property ([ordered]@{
-      Repository   = $Match.Matches.Groups[1].Value
-      Tag          = $Match.Matches.Groups[2].Value
-      ImageId      = $Match.Matches.Groups[3].Value
-      Size         = $Match.Matches.Groups[4].Value
-      CreatedSince = $Match.Matches.Groups[5].Value
-    })
-}
-#endregion
+
+
+
+
+
+# get local images for docker project $DockerHubRepository
+$LocalDockerRepositoryImages = Get-DockerImageStatus
+
+
 
 
 # listing of valid, locally installed image names
@@ -383,9 +608,7 @@ $ValidTestImageTagNames | ForEach-Object {
         Write-Output "Error is: $Results"
         exit
       }
-      # wait a second then update local container status info
-# asdf
-      # Start-Sleep -Seconds 1
+      # update local container status info
       $LocalContainerStatusInfo = Get-DockerContainerStatus
     }
     catch {
@@ -403,125 +626,23 @@ $ValidTestImageTagNames | ForEach-Object {
       Write-Output "  Container already started"
     }
     else {
-      Write-Output "  Container not started; starting"
-      try {
-        $Cmd = "docker"
-        $Params = @("start", $ContainerName)
-        $Results = & $Cmd $Params 2>&1
-        if ($? -eq $false -or $LastExitCode -ne 0) {
-          Write-Output "Error occurred running this command:"
-          Write-Output "  $Cmd $Params"
-          Write-Output "Error is: $Results"
-          exit
-        }
-        # wait a second then update local container status info
-# asdf
-#        Start-Sleep -Seconds 1
-        $LocalContainerStatusInfo = Get-DockerContainerStatus
-      }
-      catch {
-        $ErrorInfo = $_
-        Write-Output "Error occurred running this command:"
-        Write-Output "  $Cmd $Params"
-        Write-Output "Error is: $ErrorInfo"
-        exit
-      }
+      # start local container and update container status
+      Start-DockerContainer -ContainerName $ContainerName
+      $LocalContainerStatusInfo = Get-DockerContainerStatus
     }
   }
 
+  # copy items in script param $SourcePaths to container $ContainerName to location
+  # under folder $ContainerTestFolderPath
+  # does not exit if error so container can be stopped
+  Copy-FilesToDockerContainer -ContainerName $ContainerName
 
+  # run test script $ContainerTestFilePath in container $ContainerName at path $ContainerTestFolderPath
+  # does not exit if error so container can be stopped
+  Invoke-TestScriptInContainer -ContainerName $ContainerName
 
-  # asdf
-  # make sure /tmp exists in container with Test-Path
-
-
-
-  #region Copy source content to container
-  # docker cp C:\Code\GitHub\PowerShell-Beautifier mimi:/tmp
-  Write-Output "  Copying source content to container"
-  try {
-    # for each source file path, copy to docker container
-    $SourcePaths | ForEach-Object {
-      $SourcePath = $_
-      $Cmd = "docker"
-      $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerTestFolderPath))
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Write-Output "Error occurred running this command:"
-        Write-Output "  $Cmd $Params"
-        Write-Output "Error is: $Results"
-        exit
-      }
-    }
-  }
-  catch {
-    $ErrorInfo = $_
-    Write-Output "Error occurred running this command:"
-    Write-Output "  $Cmd $Params"
-    Write-Output "Error is: $ErrorInfo"
-    exit
-  }
-  #endregion
-
-
-  #region Run test script on container
-  Write-Output "  Running test script on container"
-
-  try {
-    # docker exec mimi powershell -Command { /tmp/PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 }
-    $Cmd = "docker"
-    $ScriptInContainerToRunTestText = Join-Path -Path $ContainerTestFolderPath -ChildPath $ContainerTestFilePath
-    [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptInContainerToRunTestText)
-    $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToRunTest)
-    $Done = & $Cmd $Params 2>&1
-    # the test script (with specific param) is designed to ONLY return $true if everything worked
-    # so if any error occured or if anything returned other than $true, report error results
-    if ($? -eq $false -or $LastExitCode -ne 0 -or $Done -ne $true) {
-      Write-Output "    Errors occurred running command:"
-      Write-Output "      $Cmd $Params"
-      Write-Output " "
-      Write-Output "    Error info:"
-      $Done | ForEach-Object { Write-Output $_ }
-      Write-Output " "
-    } else {
-      Write-Output "    Test script completed successfully"
-    }
-  }
-  catch {
-    $ErrorInfo = $_
-    Write-Output "Error occurred running this command:"
-    Write-Output "  $Cmd $Params"
-    Write-Output "Error is: $ErrorInfo"
-    exit
-  }
-  #endregion
-
-
-  #region Stop container
-  Write-Output "  Stoping container"
-  try {
-    $Cmd = "docker"
-    $Params = @("stop", $ContainerName)
-    $Results = & $Cmd $Params 2>&1
-    if ($? -eq $false -or $LastExitCode -ne 0) {
-      Write-Output "Error occurred running this command:"
-      Write-Output "  $Cmd $Params"
-      Write-Output "Error is: $Results"
-      exit
-    }
-    # wait a second then update local container status info
-# asdf
-    #    Start-Sleep -Seconds 1
-    $LocalContainerStatusInfo = Get-DockerContainerStatus
-  }
-  catch {
-    $ErrorInfo = $_
-    Write-Output "Error occurred running this command:"
-    Write-Output "  $Cmd $Params"
-    Write-Output "Error is: $ErrorInfo"
-    exit
-  }
-  #endregion
+  # stop local container and update container status
+  Stop-DockerContainer -ContainerName $ContainerName
+  $LocalContainerStatusInfo = Get-DockerContainerStatus
 }
 #endregion
-
