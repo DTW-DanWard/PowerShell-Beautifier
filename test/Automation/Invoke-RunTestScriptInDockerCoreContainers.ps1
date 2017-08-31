@@ -3,8 +3,10 @@
 # Params for script
 # Function for writing error info; params $Command $ErrorInfo
 # Move everything to functions
+# fix } catch {
 
 # Move get container names to function
+# Put in comment about how could auto-download image, even with size data, best not to
 # ?make sure /tmp exists in container with Test-Path
 # Output parameter / run info at top of script
 # Add parameter for Quiet option, returns $true or $false
@@ -72,6 +74,62 @@ function Out-ErrorInfo {
 #endregion
 
 
+#region Functions: Confirm-ValidateUserImageNames
+<#
+.SYNOPSIS
+Validates $TestImageTagNames entries
+.DESCRIPTION
+Validates script param $TestImageTagNames entries by comparing against locally
+installed images for repository $DockerHubRepository with same name supplied
+by user.  If image is found locally it is added to reference parameter ValidImageNames.
+If not found locally but is valid for repository $DockerHubRepository, outputs
+command for user to run to download image.  If image is not found locally nor
+is found at repository $DockerHubRepository, writes error info but does not
+exit script.
+.PARAMETER ValidImageNames
+Reference parameter!  Valid image names from $TestImageTagNames are returned here
+#>
+function Confirm-ValidateUserImageNames {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [ref]$ValidImageNames
+  )
+  #endregion
+  process {
+    # get local images for docker project $DockerHubRepository
+    $LocalDockerRepositoryImages = Get-DockerImageStatus
+
+    $TestImageTagNames | ForEach-Object {
+      $TestImageTagName = $_
+      if ($LocalDockerRepositoryImages.Tag -contains $TestImageTagName) {
+        $ValidImageNames.value += $TestImageTagName
+      }
+      else {
+        if ($ImageTagsData.Keys -contains $TestImageTagName) {
+          Write-Output " "
+          Write-Output "Image $TestImageTagName is not installed locally but exists in repository $DockerHubRepository"
+          Write-Output "To download and install type:"
+          Write-Output ("  docker pull " + $DockerHubRepository + ":" + $TestImageTagName)
+          Write-Output " "
+        }
+        else {
+          Write-Output " "
+          Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
+          Write-Output "Do you have an incorrect image name?  Valid image names are:"
+          $ImageTagsData.Keys | Sort-Object | ForEach-Object {
+            Write-Output "  $_"
+          }
+          Write-Output " "
+        }
+      }
+    }
+    
+  }
+}
+#endregion
+
+
 #region Functions: Confirm-DockerHubRepositoryFormatCorrect
 <#
 .SYNOPSIS
@@ -120,7 +178,6 @@ function Get-DockerHubProjectTagInfo {
   }
 }
 #endregion
-
 
 #endregion
 
@@ -197,6 +254,59 @@ function Copy-FilesToDockerContainer {
     }
     catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+    }
+  }
+}
+#endregion
+
+
+
+
+
+#region Function: Create-DockerContainerAndStart
+<#
+.SYNOPSIS
+Creates local container and starts it
+.DESCRIPTION
+Creates local container and starts it using docker run (as opposed to explicit
+docker create and start commands). Uses image $ImageName from repository 
+$DockerHubRepository and creates with name $ContainerName.
+If error occurs, reports error and exits script.
+.PARAMETER ImageName
+Name of docker image to use to create container.
+.PARAMETER ContainerName
+Name of container to create.
+.EXAMPLE
+Create-DockerContainerAndStart -ImageName MyImageName -ContainerName MyContainer
+# Creates local container from repository $DockerHubRepository using image MyImageName
+# naming it MyContainer and starts it.
+#>
+function Create-DockerContainerAndStart {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ImageName,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerName
+  )
+  #endregion
+  process {
+    Write-Output "  Preexisting container not found; creating and starting"
+    try {
+      $Cmd = "docker"
+      $Params = @("run", "--name", $ContainerName, "-t", "-d", ($DockerHubRepository + ":" + $ImageName))
+      $Results = & $Cmd $Params 2>&1
+      if ($? -eq $false -or $LastExitCode -ne 0) {
+        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+        exit
+      }
+    }
+    catch {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+      exit
     }
   }
 }
@@ -302,20 +412,20 @@ function Get-DockerImageStatus {
 #endregion
 
 
-#region Function: Invoke-TestScriptInContainer
+#region Function: Invoke-TestScriptInDockerContainer
 <#
 .SYNOPSIS
-Executes script on local container
+Executes PowerShell script on local container
 .DESCRIPTION
 Executes script $ContainerTestFilePath on container $ContainerName at path $ContainerTestFolderPath
 If error occurs, reports error and exits script.
 .PARAMETER ContainerName
 Name of container to use.
 .EXAMPLE
-Invoke-TestScriptInContainer MyContainer
+Invoke-TestScriptInDockerContainer MyContainer
 # Executes script $ContainerTestFilePath on container MyContainer at path $ContainerTestFolderPath
 #>
-function Invoke-TestScriptInContainer {
+function Invoke-TestScriptInDockerContainer {
   #region Function parameters
   [CmdletBinding()]
   param(
@@ -331,8 +441,8 @@ function Invoke-TestScriptInContainer {
       $ScriptInContainerToRunTestText = Join-Path -Path $ContainerTestFolderPath -ChildPath $ContainerTestFilePath
       #region A handy tip
       # if you are reading this script, this next bit contains the biggest gotcha I encountered when
-      # writing the docker commands to run in PowerShell. if you were to type a docker execute command
-      # in a PowerShell window to execute a PowerShell script in the container, it would look like this:
+      # writing the docker commands to run in PowerShell. if you were to type a docker execute command in a
+      # PowerShell window to execute a different PowerShell script in the container, it would look like this:
       #   docker exec containername powershell -Command { /SomeScript.ps1 }
       # the gotcha is that, when converting this to a string command with array of parameters
       # to pass to the call operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 "
@@ -444,13 +554,26 @@ function Stop-DockerContainer {
 #endregion
 
 
+#region Define 'global' (script-level) variables
+# besides the script parameters, these are the other 'global' (script-level) variables
+# but they are only used in the code below here
+
+# Docker image information from Docker hub for project $DockerHubRepository stored
+# as an array of PSObjects
+$ImageTagsDataContent = $null
+# same data as in $ImageTagsDataContent but in a hash table of hash tables (easier
+# lookup) plus additional entry added for ContainerName (safe/sanitized name for container)
+$ImageTagsData = $null
+
+#endregion
 
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
 # There are some exceptions: if an error occurs in Copy-FilesToDockerContainer or 
-# Invoke-TestScriptInContainer, the script does not exit so processing can continue i.e.
+# Invoke-TestScriptInDockerContainer, the script does not exit so processing can continue i.e.
 # the container will be stopped.
 
+# make sure Docker is install, 'docker' is in the path and is working
 Confirm-DockerInstalled
 
 # confirm script parameter $DockerHubRepository is <team name>/<project name>
@@ -461,10 +584,6 @@ $ImageTagsDataContent = Get-DockerHubProjectTagInfo
 
 
 #region Get Docker hub project tag info and store in new hashtable $ImageTagsData
-
-
-
-
 # for each tag, create an entry in hash table $ImageTagsData
 #   the key will be the tag name
 #   the value will be a new hashtable containing the data from the PSObject plus
@@ -509,57 +628,17 @@ if ($TestImageTagNames.Count -eq 0) {
 
 
 
-# get local images for docker project $DockerHubRepository
-$LocalDockerRepositoryImages = Get-DockerImageStatus
 
 
 
 
+
+#region Validate $TestImageTagNames
 # listing of valid, locally installed image names
 [string[]]$ValidTestImageTagNames = $null
-
-
-
-# asdf write-output with tags url for size info, etc.
-# asdf put in note about auto pulling down image
-  # we do have size info
-
-#region Identify valid local images, valid images not installed locally and invalid image names
-# for each image in $TestImageTagNames
-#  check if locally installed
-#    if so add to valid list
-#    if not
-#      check if in tags data from repository
-#        if so output how to download
-#        if not, output invalid info to user
-$TestImageTagNames | ForEach-Object {
-  $TestImageTagName = $_
-  if ($LocalDockerRepositoryImages.Tag -contains $TestImageTagName) {
-    $ValidTestImageTagNames += $TestImageTagName
-  }
-  else {
-    if ($ImageTagsData.Keys -contains $TestImageTagName) {
-      Write-Output " "
-      Write-Output "Image $TestImageTagName is not installed locally but exists in repository $DockerHubRepository"
-      Write-Output "To download it type:"
-      Write-Output ("  docker pull " + $DockerHubRepository + ":" + $TestImageTagName)
-      Write-Output " "
-    }
-    else {
-      Write-Output " "
-      Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
-      Write-Output "Do you have an incorrect image name?  Valid image names are:"
-      $ImageTagsData.Keys | Sort-Object | ForEach-Object {
-        Write-Output "  $_"
-      }
-      Write-Output " "
-    }
-  }
-}
-#endregion
-
-
-#region If no valid local images, exit
+# check user supplied images names, if valid will be stored in ValidTestImageTagNames 
+Confirm-ValidateUserImageNames -ValidImageNames ([ref]$ValidTestImageTagNames)
+# check if no valid image names - exit
 if ($ValidTestImageTagNames -eq $null) {
   Write-Output "No locally installed images to test against; exiting."
   exit
@@ -567,57 +646,30 @@ if ($ValidTestImageTagNames -eq $null) {
 #endregion
 
 
-
-Write-Output "Getting container status"
-$LocalContainerStatusInfo = Get-DockerContainerStatus
-
-
-
-
-#region Loop through each valid local image and test
+#region Loop through valid local images, create/start container, copy code to it, run test and stop container
 Write-Output "Testing on these containers: $ValidTestImageTagNames"
-
 
 $ValidTestImageTagNames | ForEach-Object {
   $ValidTestImageTagName = $_
   Write-Output " "
   Write-Output $ValidTestImageTagName
+
   #region Container name information
-  # we want to use a specific container name for our containers because
-  # if you don't specify a name, docker will create one with a random name.
-  # it's a lot easier to find/start/stop a container with a distinct name you 
-  # know in advance; in this case we'll base it on the RepositoryName:ImageName
-  # but docker's container name only allows certain characters (no slashes or 
-  # colons) so we'll the sanitized ContainerName value that added top the 
-  # image data in $ImageTagsData
+  # we want to use a specific container name for our containers because if you don't
+  # specify a name, docker will create one with a random name. it's a lot easier to
+  # find/start/stop a container with a distinct name you know in advance; in this 
+  # case we'll base it on the RepositoryName:ImageName but docker's container name
+  # only allows certain characters (no slashes or colons) so we'll the sanitized 
+  # ContainerName value that added top the image data in $ImageTagsData
   #endregion
   # get sanitized container name for this image
   $ContainerName = ($ImageTagsData[$ValidTestImageTagName]).ContainerName
-  # get test container info
-  $ContainerInfo = $LocalContainerStatusInfo | Where-Object { $_.Name -eq $ContainerName }
+  # get container info for $ContainerName
+  $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Name -eq $ContainerName }
   # if no container exists, create one and start it
   if ($ContainerInfo -eq $null) {
-    Write-Output "  Preexisting container not found; creating..."
-    try {
-      $Cmd = "docker"
-      $Params = @("run", "--name", $ContainerName, "-t", "-d", ($DockerHubRepository + ":" + $ValidTestImageTagName))
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Write-Output "Error occurred running this command:"
-        Write-Output "  $Cmd $Params"
-        Write-Output "Error is: $Results"
-        exit
-      }
-      # update local container status info
-      $LocalContainerStatusInfo = Get-DockerContainerStatus
-    }
-    catch {
-      $ErrorInfo = $_
-      Write-Output "Error occurred running this command:"
-      Write-Output "  $Cmd $Params"
-      Write-Output "Error is: $ErrorInfo"
-      exit
-    }
+    # create docker container and start it
+    Create-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
   }
   else {
     Write-Output "  Preexisting container found"
@@ -626,9 +678,8 @@ $ValidTestImageTagNames | ForEach-Object {
       Write-Output "  Container already started"
     }
     else {
-      # start local container and update container status
+      # start local container
       Start-DockerContainer -ContainerName $ContainerName
-      $LocalContainerStatusInfo = Get-DockerContainerStatus
     }
   }
 
@@ -639,10 +690,9 @@ $ValidTestImageTagNames | ForEach-Object {
 
   # run test script $ContainerTestFilePath in container $ContainerName at path $ContainerTestFolderPath
   # does not exit if error so container can be stopped
-  Invoke-TestScriptInContainer -ContainerName $ContainerName
+  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName
 
-  # stop local container and update container status
+  # stop local container
   Stop-DockerContainer -ContainerName $ContainerName
-  $LocalContainerStatusInfo = Get-DockerContainerStatus
 }
 #endregion
