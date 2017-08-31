@@ -1,20 +1,28 @@
 # To do:
-# Script help
+# Confirm-ValidateUserImageNames - pass in image data
 # Params for script
-# Function for writing error info; params $Command $ErrorInfo
-# Move everything to functions
-# fix } catch {
+# Script help
+# Write-Output parameter / run info at top of script
 
-# Move get container names to function
-# Put in comment about how could auto-download image, even with size data, best not to
-# ?make sure /tmp exists in container with Test-Path
-# Output parameter / run info at top of script
+# Add optional param Message to Out-ErrorInfo
+# New function: Invoke-RunCommand: [string]$Cmd, [object[]]$Params
+#   runs 'legacy' command line commands with call operator &
+#   outputs errors if occur and exits script
+# Refactor all code to use
+#   Some code outside/after of try/catch 
+#   Some code pass optional message
+
+# move all main processing code to Invoke-Main so no 'global' variables besides script parameters
+# spell check comments
+# one last test of all error handling
+# review regions in ISE cause they still don't work in VS Code... :(
+# Add readme.md to Automation folder
+
+
 # Add parameter for Quiet option, returns $true or $false
 #   batch info to output in case of error?
 # Validate params for stuff to copy, stuff to run
-# Clean up all asdf
 # Note in main about call function, if error exits
-# Add readme.md to Automation folder
 # run script through beautifier
 
 # No? Params for exiting testing if one container fails (assume always test all?)
@@ -25,7 +33,7 @@
 # in help describe path building of path for test folder path, test file path and option
 
 [string]$DockerHubRepository = "microsoft/powershell"
-[string[]]$TestImageTagNames = "ubuntu16.04", "centos7"
+[string[]]$TestImageNames = "ubuntu16.04", "centos7"
 [string[]]$SourcePaths = @("C:\Code\GitHub\PowerShell-Beautifier")
 [string]$ContainerTestFolderPath = "/tmp"
 [string]$ContainerTestFilePath = "PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet"
@@ -77,9 +85,9 @@ function Out-ErrorInfo {
 #region Functions: Confirm-ValidateUserImageNames
 <#
 .SYNOPSIS
-Validates $TestImageTagNames entries
+Validates script param TestImageNames entries
 .DESCRIPTION
-Validates script param $TestImageTagNames entries by comparing against locally
+Validates script param $TestImageNames entries by comparing against locally
 installed images for repository $DockerHubRepository with same name supplied
 by user.  If image is found locally it is added to reference parameter ValidImageNames.
 If not found locally but is valid for repository $DockerHubRepository, outputs
@@ -87,7 +95,7 @@ command for user to run to download image.  If image is not found locally nor
 is found at repository $DockerHubRepository, writes error info but does not
 exit script.
 .PARAMETER ValidImageNames
-Reference parameter!  Valid image names from $TestImageTagNames are returned here
+Reference parameter!  Valid image names from $TestImageNames are returned here
 #>
 function Confirm-ValidateUserImageNames {
   #region Function parameters
@@ -100,13 +108,18 @@ function Confirm-ValidateUserImageNames {
     # get local images for docker project $DockerHubRepository
     $LocalDockerRepositoryImages = Get-DockerImageStatus
 
-    $TestImageTagNames | ForEach-Object {
+    $TestImageNames | ForEach-Object {
       $TestImageTagName = $_
       if ($LocalDockerRepositoryImages.Tag -contains $TestImageTagName) {
         $ValidImageNames.value += $TestImageTagName
       }
       else {
-        if ($ImageTagsData.Keys -contains $TestImageTagName) {
+        if ($HubImageDataHashTable.Keys -contains $TestImageTagName) {
+          #region Programming note
+          # if the image name is valid and not installed locally we could just run the 'docker pull' command
+          # ourselves programmatically.  however, pulling down that much data (WindowsServerCore is 5GB!) is
+          # really something the user should initiate.
+          #endregion
           Write-Output " "
           Write-Output "Image $TestImageTagName is not installed locally but exists in repository $DockerHubRepository"
           Write-Output "To download and install type:"
@@ -117,7 +130,7 @@ function Confirm-ValidateUserImageNames {
           Write-Output " "
           Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
           Write-Output "Do you have an incorrect image name?  Valid image names are:"
-          $ImageTagsData.Keys | Sort-Object | ForEach-Object {
+          $HubImageDataHashTable.Keys | Sort-Object | ForEach-Object {
             Write-Output "  $_"
           }
           Write-Output " "
@@ -142,11 +155,11 @@ If correct, does nothing, if incorrect writes info and exits script.
 function Confirm-DockerHubRepositoryFormatCorrect {
   process {
     # the value for $DockerHubRepository should be: <team name>/<project name>
-    # i.e. it should have only 1 slash in it 'in the middle' of other characters
+    # i.e. it should have only 1 slash in it between other characters
     if ($DockerHubRepository -notmatch '^[^/]+/[^/]+$') {
       Write-Output "The format for DockerHubRepository is incorrect: $DockerHubRepository"
       Write-Output "It should be in the format: TeamName/ProjectName"
-      Write-Output "i.e. it should have only 1 slash, surrounded by other text."
+      Write-Output "That is: only 1 forward slash surrounded by other non-forward-slash text"
       exit
     }
   }
@@ -154,14 +167,77 @@ function Confirm-DockerHubRepositoryFormatCorrect {
 #endregion
 
 
-#region Functions: Get-DockerHubProjectTagInfo
+#region Functions: Convert-ImageDataToHashTables
 <#
 .SYNOPSIS
-Returns Docker hub project tag info for $DockerHubRepository
+Converts Docker hub project image/tags data to hashtable of hashtables
 .DESCRIPTION
-Returns Docker hub project tag info for $DockerHubRepository; format is PSObjects.
+Converts Docker hub project image/tags data, in the form of an object array,
+to hashtable of hashtables for easier lookup.  Also adds a sanitized / safe
+value to use for container name, based on repository:image name.
+.PARAMETER ImageDataPSObjects
+Image data as array of PSObjects
 #>
-function Get-DockerHubProjectTagInfo {
+function Convert-ImageDataToHashTables {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $false)]
+    [ValidateNotNullOrEmpty()]
+    [object[]]$ImageDataPSObjects
+  )
+  #endregion
+  process {
+    $ImageDataHashTable = [ordered]@{}
+    # for each entry in $ImageDataPSObjects:
+    #   create an entry in hash table $ImageDataHashTable
+    #   the key will be the image/tag name
+    #   the value will be a new hashtable containing the data from the PSObject plus
+    #     a new property ContainerName, which is a sanitized name to be used as the
+    #     Docker container name (which can only have certain characters)
+    $ImageDataPSObjects.name | Sort-Object | ForEach-Object {
+      $Name = $_
+      $OneImageData = [ordered]@{}
+      # get PSObject for this tag
+      $TagObject = $ImageDataPSObjects | Where-Object { $_.name -eq $Name }
+      
+      # for each property on the PSObject, add to hashtable
+      ($TagObject | Get-Member -MemberType NoteProperty).Name | Sort-Object | ForEach-Object {
+        $OneImageData.$_ = $TagObject.$_
+      }
+    
+      #region Container name information
+      # when creating and using containers we want to use a specific container name; if you
+      # don't specify a name, docker will create the container with a random name. it's a lot
+      # easier to find/start/use/stop a container with a distinct name you know in advance. 
+      # so we'll base the name on the docker standard RepositoryName:ImageName; unfortunately 
+      # docker's container name only allows certain characters (no slashes or colons) so we'll
+      # add a sanitized ContainerName property to the image data in $ImageDataHashTable and use
+      # that in our code.
+      # per docker error message only these characters are valid for the --name parameter:
+      #   [a-zA-Z0-9][a-zA-Z0-9_.-]
+      #endregion
+      # replace any invalid characters with underscores to get sanitized/safe name
+      $OneImageData.ContainerName = ($DockerHubRepository + '_' + $Name ) -replace '[^a-z0-9_.-]', '_'
+      
+      # now add this image/tag's hashtable data to the main $ImageDataHashTable hashtable
+      $ImageDataHashTable.$Name = $OneImageData
+    }
+    #return data
+    $ImageDataHashTable
+  }
+}
+#endregion
+
+
+#region Functions: Get-DockerHubProjectImageInfo
+<#
+.SYNOPSIS
+Returns Docker hub project image/tag info for $DockerHubRepository
+.DESCRIPTION
+Returns Docker hub project image/tag info for $DockerHubRepository; format is PSObjects.
+#>
+function Get-DockerHubProjectImageInfo {
   process {
     # path to tags for Docker project
     $ImageTagsUri = "https://hub.docker.com/v2/repositories/" + $DockerHubRepository + "/tags"
@@ -204,8 +280,7 @@ function Confirm-DockerInstalled {
         Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
         exit
       }
-    }
-    catch {
+    } catch {
       Write-Output "Docker does not appear to be installed or working correctly."
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
@@ -251,16 +326,12 @@ function Copy-FilesToDockerContainer {
           Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
         }
       }
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
     }
   }
 }
 #endregion
-
-
-
 
 
 #region Function: Create-DockerContainerAndStart
@@ -303,8 +374,7 @@ function Create-DockerContainerAndStart {
         Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
         exit
       }
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
     }
@@ -352,8 +422,7 @@ function Get-DockerContainerStatus {
           })
         }
       $ContainerInfo
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
     }
@@ -402,8 +471,7 @@ function Get-DockerImageStatus {
           })
         }
       $ImageInfo
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
     }
@@ -460,8 +528,7 @@ function Invoke-TestScriptInDockerContainer {
       } else {
         Write-Output "    Test script completed successfully"
       }
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
     }
@@ -501,8 +568,7 @@ function Start-DockerContainer {
         Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
         exit
       }
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
     }
@@ -542,8 +608,7 @@ function Stop-DockerContainer {
         Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
         exit
       }
-    }
-    catch {
+    } catch {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
       exit
     }
@@ -560,80 +625,47 @@ function Stop-DockerContainer {
 
 # Docker image information from Docker hub for project $DockerHubRepository stored
 # as an array of PSObjects
-$ImageTagsDataContent = $null
-# same data as in $ImageTagsDataContent but in a hash table of hash tables (easier
+$HubImageDataPSObject = $null
+
+# same data as in $HubImageDataPSObject but in a hash table of hash tables (easier
 # lookup) plus additional entry added for ContainerName (safe/sanitized name for container)
-$ImageTagsData = $null
+$HubImageDataHashTable = $null
 
 #endregion
 
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
 # There are some exceptions: if an error occurs in Copy-FilesToDockerContainer or 
-# Invoke-TestScriptInDockerContainer, the script does not exit so processing can continue i.e.
-# the container will be stopped.
+# Invoke-TestScriptInDockerContainer, the script does not exit so processing can continue
+# and the container will be stopped.
 
-# make sure Docker is install, 'docker' is in the path and is working
+
+# make sure Docker is installed, 'docker' is in the path and is working
+# no point in continuing if Docker isn't working
 Confirm-DockerInstalled
+
+#region Get Docker hub image/tag data and validate script parameters
 
 # confirm script parameter $DockerHubRepository is <team name>/<project name>
 Confirm-DockerHubRepositoryFormatCorrect
 
-# get Docker image names and other details from Docker hub project tags data (format PSObjects)
-$ImageTagsDataContent = Get-DockerHubProjectTagInfo
+# get Docker image names and other details from online Docker hub project tags data (format PSObjects)
+$HubImageDataPSObject = Get-DockerHubProjectImageInfo
+# convert $HubImageDataPSObject to hashtable of hashtables (easier lookup) and 
+# add sanitized ContainerName for each container
+$HubImageDataHashTable = Convert-ImageDataToHashTables -ImageDataPSObjects $HubImageDataPSObject
 
-
-#region Get Docker hub project tag info and store in new hashtable $ImageTagsData
-# for each tag, create an entry in hash table $ImageTagsData
-#   the key will be the tag name
-#   the value will be a new hashtable containing the data from the PSObject plus
-#     a new property ContainerName, which is a sanitized name to be used as the
-#     Docker container name (which can only have certain characters)
-$ImageTagsData = [ordered]@{}
-$ImageTagsDataContent.name | Sort-Object | ForEach-Object {
-  $Name = $_
-  $OneTagData = [ordered]@{}
-  # get PSObject data
-  $TagObject = $ImageTagsDataContent | Where-Object { $_.name -eq $Name }
-  
-  # for each property on the PSObject, add to hashtable
-  ($TagObject | Get-Member -MemberType NoteProperty).Name | Sort-Object | ForEach-Object {
-    $OneTagData.$_ = $TagObject.$_
-  }
-
-  # add sanitizied container name to $OneTagData that we can use to find/start/stop container name
-  # per docker error message only these characters are valid for --name: [a-zA-Z0-9][a-zA-Z0-9_.-]
-  # replace any invalid characters with underscores
-  $OneTagData.ContainerName = ($DockerHubRepository + '_' + $Name ) -replace '[^a-z0-9_.-]', '_'
-  
-  # now add this tag's hashtagdata to the main $ImageTagsData hashtable
-  $ImageTagsData.$Name = $OneTagData
-}
-#endregion
-
-
-#region If no images specified as params, display valid list
-if ($TestImageTagNames.Count -eq 0) {
+#region If user didn't specify any values for TestImageNames, display valid values and exit
+if ($TestImageNames.Count -eq 0) {
   Write-Output "No image/tag name specified for TestImageTagName; please use a value below:"
-  $ImageTagsData.Keys | Sort-Object | ForEach-Object {
+  $HubImageDataHashTable.Keys | Sort-Object | ForEach-Object {
     Write-Output "  $_"
   }
   exit
 }
 #endregion
 
-
-
-
-
-
-
-
-
-
-
-
-#region Validate $TestImageTagNames
+#region Validate script param TestImageNames
 # listing of valid, locally installed image names
 [string[]]$ValidTestImageTagNames = $null
 # check user supplied images names, if valid will be stored in ValidTestImageTagNames 
@@ -644,7 +676,7 @@ if ($ValidTestImageTagNames -eq $null) {
   exit
 }
 #endregion
-
+#endregion
 
 #region Loop through valid local images, create/start container, copy code to it, run test and stop container
 Write-Output "Testing on these containers: $ValidTestImageTagNames"
@@ -654,16 +686,8 @@ $ValidTestImageTagNames | ForEach-Object {
   Write-Output " "
   Write-Output $ValidTestImageTagName
 
-  #region Container name information
-  # we want to use a specific container name for our containers because if you don't
-  # specify a name, docker will create one with a random name. it's a lot easier to
-  # find/start/stop a container with a distinct name you know in advance; in this 
-  # case we'll base it on the RepositoryName:ImageName but docker's container name
-  # only allows certain characters (no slashes or colons) so we'll the sanitized 
-  # ContainerName value that added top the image data in $ImageTagsData
-  #endregion
-  # get sanitized container name for this image
-  $ContainerName = ($ImageTagsData[$ValidTestImageTagName]).ContainerName
+  # get sanitized container name (based on repository + image name) for this image
+  $ContainerName = ($HubImageDataHashTable[$ValidTestImageTagName]).ContainerName
   # get container info for $ContainerName
   $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Name -eq $ContainerName }
   # if no container exists, create one and start it
