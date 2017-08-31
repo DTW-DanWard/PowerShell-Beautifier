@@ -1,22 +1,15 @@
 # To do:
-# Confirm-ValidateUserImageNames - pass in image data
+# Write-Output parameter / run info at top of script
 # Params for script
 # Script help
-# Write-Output parameter / run info at top of script
+# Add readme.md to Automation folder
 
-# Add optional param Message to Out-ErrorInfo
-# New function: Invoke-RunCommand: [string]$Cmd, [object[]]$Params
-#   runs 'legacy' command line commands with call operator &
-#   outputs errors if occur and exits script
-# Refactor all code to use
-#   Some code outside/after of try/catch 
-#   Some code pass optional message
-
+# Confirm-ValidateUserImageNames - pass in image data
 # move all main processing code to Invoke-Main so no 'global' variables besides script parameters
+
+# review regions in ISE cause they still don't work in VS Code... :(
 # spell check comments
 # one last test of all error handling
-# review regions in ISE cause they still don't work in VS Code... :(
-# Add readme.md to Automation folder
 
 
 # Add parameter for Quiet option, returns $true or $false
@@ -53,6 +46,8 @@ Command that was run
 Parameters for the command
 .PARAMETER ErrorInfo
 Error information captured to display
+.PARAMETER ErrorMessage
+Optional message to display before all error info
 .EXAMPLE
 Out-ErrorInfo -Command "docker" -Parameters "--notaparam" -ErrorInfo $CapturedError
 # Writes command, parameters and error info to output
@@ -69,14 +64,69 @@ function Out-ErrorInfo {
     [object[]]$Parameters,
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [object[]]$ErrorInfo
+    [object[]]$ErrorInfo,
+    [string]$ErrorMessage
   )
   #endregion
   process {
+    if ($ErrorMessage -ne $null -and $ErrorMessage.Trim() -ne '') {
+      Write-Output $ErrorMessage
+    }
     Write-Output "Error occurred running this command:"
     Write-Output "  $Command $Parameters"
     Write-Output "Error info:"
     $ErrorInfo | ForEach-Object { Write-Output $_.ToString() }
+  }
+}
+#endregion
+
+
+#region Function: Invoke-RunCommand
+<#
+.SYNOPSIS
+Runs 'legacy' command-line commands with call operator &
+.DESCRIPTION
+Runs 'legacy' command-line commands with call operator & in try/catch
+block and tests both $? and $LastExitCode for errors. If error occurs, 
+writes out using Out-ErrorInfo.
+.PARAMETER Command
+Command to run
+.PARAMETER Parameters
+Parameters to use
+.PARAMETER ErrorMessage
+Optional message to display if error occurs
+.PARAMETER ExitOnError
+If error occurs, exit script
+#>
+function Invoke-RunCommand {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Command,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [object[]]$Parameters,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [ref]$Results,
+    [string]$ErrorMessage,
+    [switch]$ExitOnError
+
+  )
+  #endregion
+  process {
+    try {
+      $Results.value = & $Command $Parameters 2>&1
+      if ($? -eq $false -or $LastExitCode -ne 0) {
+        Out-ErrorInfo -Command $Command -Parameters $Parameters -ErrorInfo $Results.value -ErrorMessage $ErrorMessage
+        if ($ExitOnError -eq $true) { exit }
+      }
+    } catch {
+      Out-ErrorInfo -Command $Command -Parameters $Parameters -ErrorInfo $_.Exception.Message -ErrorMessage $ErrorMessage
+      if ($ExitOnError -eq $true) { exit }
+    }
   }
 }
 #endregion
@@ -271,20 +321,12 @@ does nothing.  If not installed, reports error and exits script.
 #>
 function Confirm-DockerInstalled {
   process {
-    try {
-      $Cmd = "docker"
-      $Params = @("--version")
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Write-Output "Docker does not appear to be installed or working correctly."
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        exit
-      }
-    } catch {
-      Write-Output "Docker does not appear to be installed or working correctly."
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
-    }
+    $Cmd = "docker"
+    $Params = @("--version")
+    $ErrorMessage = "Docker does not appear to be installed or is not working correctly."
+    # capture Results output and discard; if error, Invoke-RunCommand exits script
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ErrorMessage $ErrorMessage -ExitOnError
   }
 }
 #endregion
@@ -314,27 +356,22 @@ function Copy-FilesToDockerContainer {
   #endregion
   process {
     Write-Output "  Copying source content to container under $ContainerTestFolderPath"
-    try {
-      # for each source file path, copy to docker container
-      $SourcePaths | ForEach-Object {
-        $SourcePath = $_
-        Write-Output "    $SourcePath"
-        $Cmd = "docker"
-        $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerTestFolderPath))
-        $Results = & $Cmd $Params 2>&1
-        if ($? -eq $false -or $LastExitCode -ne 0) {
-          Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        }
-      }
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
+    # for each source file path, copy to docker container
+    $SourcePaths | ForEach-Object {
+      $SourcePath = $_
+      Write-Output "    $SourcePath"
+      $Cmd = "docker"
+      $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerTestFolderPath))
+      # capture output and discard; don't exit on error
+      $Results = $null
+      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
     }
   }
 }
 #endregion
 
 
-#region Function: Create-DockerContainerAndStart
+#region Function: Initialize-DockerContainerAndStart
 <#
 .SYNOPSIS
 Creates local container and starts it
@@ -348,11 +385,11 @@ Name of docker image to use to create container.
 .PARAMETER ContainerName
 Name of container to create.
 .EXAMPLE
-Create-DockerContainerAndStart -ImageName MyImageName -ContainerName MyContainer
+Initialize-DockerContainerAndStart -ImageName MyImageName -ContainerName MyContainer
 # Creates local container from repository $DockerHubRepository using image MyImageName
 # naming it MyContainer and starts it.
 #>
-function Create-DockerContainerAndStart {
+function Initialize-DockerContainerAndStart {
   #region Function parameters
   [CmdletBinding()]
   param(
@@ -366,18 +403,11 @@ function Create-DockerContainerAndStart {
   #endregion
   process {
     Write-Output "  Preexisting container not found; creating and starting"
-    try {
-      $Cmd = "docker"
-      $Params = @("run", "--name", $ContainerName, "-t", "-d", ($DockerHubRepository + ":" + $ImageName))
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        exit
-      }
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
-    }
+    $Cmd = "docker"
+    $Params = @("run", "--name", $ContainerName, "-t", "-d", ($DockerHubRepository + ":" + $ImageName))
+    # capture output and discard; if error, Invoke-RunCommand exits script
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
   }
 }
 #endregion
@@ -400,32 +430,22 @@ ContainerId  Name        Image                            Status
 #>
 function Get-DockerContainerStatus {
   process {
-    # regex to extract 4 items from docker format output
-    $Pattern = "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-    $ContainerInfo = $null
-    try {
-      $Cmd = "docker"
-      $Params = @("ps", "-a", "--format", "{{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}")
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        exit
+    $Cmd = "docker"
+    $Params = @("ps", "-a", "--format", "{{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}")
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    # now parse results to get individual properties
+    $ContainerInfo = $Results | ForEach-Object {
+      # extract 4 items from tab separated string
+      $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
+      New-Object PSObject -Property ([ordered]@{
+          ContainerId = $Match.Matches.Groups[1].Value
+          Name        = $Match.Matches.Groups[2].Value
+          Image       = $Match.Matches.Groups[3].Value
+          Status      = $Match.Matches.Groups[4].Value
+        })
       }
-      # now parse results to get individual properties
-      $ContainerInfo = $Results | ForEach-Object {
-        $Match = Select-String -InputObject $_ -Pattern $Pattern
-        New-Object PSObject -Property ([ordered]@{
-            ContainerId = $Match.Matches.Groups[1].Value
-            Name        = $Match.Matches.Groups[2].Value
-            Image       = $Match.Matches.Groups[3].Value
-            Status      = $Match.Matches.Groups[4].Value
-          })
-        }
-      $ContainerInfo
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
-    }
+    $ContainerInfo
   }
 }
 #endregion
@@ -448,33 +468,23 @@ microsoft/powershell ubuntu16.04 1c33de461473 365MB  2 months ago
 #>
 function Get-DockerImageStatus {
   process {
-    # regex to extract 5 items from docker format output
-    $Pattern = "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-    $ImageInfo = $null
-    try {
-      $Cmd = "docker"
-      $Params = @("images", $DockerHubRepository, "--format", "{{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.Size}}`t{{.CreatedSince}}")
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        exit
+    $Cmd = "docker"
+    $Params = @("images", $DockerHubRepository, "--format", "{{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.Size}}`t{{.CreatedSince}}")
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    # now parse results to get individual properties
+    $ImageInfo = $Results | ForEach-Object {
+      # extract 5 items from tab separated string
+      $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
+      New-Object PSObject -Property ([ordered]@{
+          Repository   = $Match.Matches.Groups[1].Value
+          Tag          = $Match.Matches.Groups[2].Value
+          ImageId      = $Match.Matches.Groups[3].Value
+          Size         = $Match.Matches.Groups[4].Value
+          CreatedSince = $Match.Matches.Groups[5].Value
+        })
       }
-      # now parse results to get individual properties
-      $ImageInfo = $Results | ForEach-Object {
-        $Match = Select-String -InputObject $_ -Pattern $Pattern
-        New-Object PSObject -Property ([ordered]@{
-            Repository   = $Match.Matches.Groups[1].Value
-            Tag          = $Match.Matches.Groups[2].Value
-            ImageId      = $Match.Matches.Groups[3].Value
-            Size         = $Match.Matches.Groups[4].Value
-            CreatedSince = $Match.Matches.Groups[5].Value
-          })
-        }
-      $ImageInfo
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
-    }
+    $ImageInfo
   }
 }
 #endregion
@@ -504,33 +514,29 @@ function Invoke-TestScriptInDockerContainer {
   #endregion
   process {
     Write-Output "  Running test script on container"
-    try {
-      $Cmd = "docker"
-      $ScriptInContainerToRunTestText = Join-Path -Path $ContainerTestFolderPath -ChildPath $ContainerTestFilePath
-      #region A handy tip
-      # if you are reading this script, this next bit contains the biggest gotcha I encountered when
-      # writing the docker commands to run in PowerShell. if you were to type a docker execute command in a
-      # PowerShell window to execute a different PowerShell script in the container, it would look like this:
-      #   docker exec containername powershell -Command { /SomeScript.ps1 }
-      # the gotcha is that, when converting this to a string command with array of parameters
-      # to pass to the call operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 "
-      # as a scriptblock first; if you try passing it in as a string it will not execute no matter how
-      # you format it.
-      #endregion
-      [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptInContainerToRunTestText)
-      $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToRunTest)
-      $Results = & $Cmd $Params 2>&1
-      # when used with the -Quiet param my test script is designed to return ONLY $true if everything
-      # worked. so if any error occurred or if some type of error message is returned (i.e. anything other
-      # than $true) call it an error and report results
-      if ($? -eq $false -or $LastExitCode -ne 0 -or $Results -ne $true) {
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-      } else {
-        Write-Output "    Test script completed successfully"
-      }
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
+    #region A handy tip
+    # if you are reading this script, this next bit contains the biggest gotcha I encountered when
+    # writing the docker commands to run in PowerShell. if you were to type a docker execute command in a
+    # PowerShell window to execute a different PowerShell script in the container, it would look like this:
+    #   docker exec containername powershell -Command { /SomeScript.ps1 }
+    # the gotcha is that, when converting this to a command with array of parameters to pass to the call
+    # operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 " as a scriptblock 
+    # first; if you try passing it in as a string it will not execute no matter how you format it.
+    #endregion
+    $Cmd = "docker"
+    $ScriptInContainerToRunTestText = Join-Path -Path $ContainerTestFolderPath -ChildPath $ContainerTestFilePath
+    [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptInContainerToRunTestText)
+    $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToRunTest)
+
+    # capture output $Results; don't exit on error
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
+    # my test script, when used with the -Quiet param, is designed to return ONLY $true if everything
+    # worked. so if anything other than $true returned assume error and report results
+    if ($Results -ne $null -and $Results -ne $true) {
+      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+    } else {
+      Write-Output "    Test script completed successfully"
     }
   }
 }
@@ -560,18 +566,11 @@ function Start-DockerContainer {
   #endregion
   process {
     Write-Output "  Starting container"
-    try {
-      $Cmd = "docker"
-      $Params = @("start", $ContainerName)
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        exit
-      }
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
-    }
+    $Cmd = "docker"
+    $Params = @("start", $ContainerName)
+    # capture output and discard; if error, Invoke-RunCommand exits script
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
   }
 }
 #endregion
@@ -600,18 +599,11 @@ function Stop-DockerContainer {
   #endregion
   process {
     Write-Output "  Stopping container"
-    try {
-      $Cmd = "docker"
-      $Params = @("stop", $ContainerName)
-      $Results = & $Cmd $Params 2>&1
-      if ($? -eq $false -or $LastExitCode -ne 0) {
-        Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-        exit
-      }
-    } catch {
-      Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $_.Exception.Message
-      exit
-    }
+    $Cmd = "docker"
+    $Params = @("stop", $ContainerName)
+    # capture output and discard; if error, Invoke-RunCommand exits script
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
   }
 }
 #endregion
@@ -693,7 +685,7 @@ $ValidTestImageTagNames | ForEach-Object {
   # if no container exists, create one and start it
   if ($ContainerInfo -eq $null) {
     # create docker container and start it
-    Create-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
+    Initialize-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
   }
   else {
     Write-Output "  Preexisting container found"
