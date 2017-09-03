@@ -1,35 +1,125 @@
 # To do:
-# Write-Output parameter / run info at top of script
-# Params for script
+
 # Script help
-# Add readme.md to Automation folder
+  # in help describe path building of path for test folder path, test file path and option
+
+  # Validate $SourcePaths
+
+# get temp folder by running command in Docker
+#  [System.IO.Path]::GetTempPath()
+#  add new global variable
+#  remove param ContainerTestFolderPath
+
+# New function to return docker Go template to
+#  return string with `t formatting
+# New function to parse docker results into PSObjects
+#  Go template, for this function placeholder must be tab `t separated
+#  documentation see docker --format format, for example
+#    https://docs.docker.com/engine/reference/commandline/ps/#formatting
+#  or pass in array of placeholders
+#  pass in docker format tab separated
+#    {{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}
+#    removes {{. and }}, splits on `t
+#    for each property, Adds property
+# Refactor Get-DockerContainerStatus and Get-DockerImageStatus
+#   DIFFERENT PROPERTY PSOBJECTS VALUES FROM FORMAT VALUES
+
+
+# ?Validate $ContainerTestFolderPath
+#   Need to do if removing?
+
+# Add parameter for Quiet option, returns $true or $false
+#   batch info to output in case of error?
 
 # Confirm-ValidateUserImageNames - pass in image data
 # move all main processing code to Invoke-Main so no 'global' variables besides script parameters
 
+# Add readme.md to Automation folder
+#   Notes about automating container script for own uses
+#   Setting up test script
+
+# See keith hills blog post about processing paths, literalpaths
+# https://rkeithhill.wordpress.com/2016/02/17/creating-a-powershell-command-that-process-paths-using-visual-studio-code/
+
+# one last test of all error handling
+#  start with no containers and no images
 # review regions in ISE cause they still don't work in VS Code... :(
 # spell check comments
-# one last test of all error handling
-
-
-# Add parameter for Quiet option, returns $true or $false
-#   batch info to output in case of error?
-# Validate params for stuff to copy, stuff to run
-# Note in main about call function, if error exits
 # run script through beautifier
+
+# download centos7
+# Need to test on Nano Server and ServerCore
+# officially test ubuntu, centos and nano
+
+# Validate params for stuff to copy, stuff to run
 
 # No? Params for exiting testing if one container fails (assume always test all?)
 #   Or exit after first failure?  Probably exit after first
 # Go through TechTasks notes for anything else missing
 
+<#
+.SYNOPSIS
+Automates PowerShell Core script testing on local Docker containers
+.DESCRIPTION
+Automates testing of PowerShell Core scripts on different operating systems by using
+local Docker containers running PowerShell Core images from the official Microsoft 
+Docker hub. Performs these steps:
+ - validates user-specified image names with local images and Docker hub versions;
+ - for each valid Docker image name:
+   - ensures container exists for testing (creates if necessary);
+   - ensures container is running;
+   - copies one or more folders and/or files from local computer to container;
+   - executes command (i.e. launches test script) in container;
+   - stops container.
+.PARAMETER SourcePaths
+Folders and/or files on local machine to copy to container
+.PARAMETER ContainerTestFilePath
+In container: the relative path to the test script (with any params) to launch test
+.PARAMETER ContainerTestFolderPath
+In container: full path to folder in which to copies ContainerTestFilePath files
+(default /tmp)
+.PARAMETER ErrorMessage
+Optional message to display before all error info
+.EXAMPLE
+Out-ErrorInfo -Command "docker" -Parameters "--notaparam" -ErrorInfo $CapturedError
+# Writes command, parameters and error info to output
+#>
 
-# in help describe path building of path for test folder path, test file path and option
+#region Script parameters
+# note: the default values below are specific to my machine and the PowerShell-Beautifier
+# project. I tried to parameterize and genericize this as much as possible so that it could
+# be used by others with (perferably) no code changes. See readme.md in same folder as this
+# script for more information about modifying this for your own needs.
+param(
+  [string[]]$SourcePaths = "C:\Code\GitHub\PowerShell-Beautifier",
+  [string]$ContainerTestFilePath = "PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet",
+  [string]$ContainerTestFolderPath = "/tmp",
+  [string[]]$TestImageNames = @("ubuntu16.04", "centos7"),
+  [string]$DockerHubRepository = "microsoft/powershell"
+  
+)
+#endregion
 
-[string]$DockerHubRepository = "microsoft/powershell"
-[string[]]$TestImageNames = "ubuntu16.04", "centos7"
-[string[]]$SourcePaths = @("C:\Code\GitHub\PowerShell-Beautifier")
-[string]$ContainerTestFolderPath = "/tmp"
-[string]$ContainerTestFilePath = "PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet"
+
+# asdf check for values here
+
+
+#region Output startup info
+Write-Output " "
+Write-Output "Testing with these values:"
+Write-Output "  Test file:        $ContainerTestFilePath"
+Write-Output "  Container path:   $ContainerTestFolderPath"
+Write-Output "  Docker hub repo:  $DockerHubRepository"
+Write-Output "  Images names:     $TestImageNames"
+if ($SourcePaths.Count -eq 1) {
+Write-Output "  Source paths:     $SourcePaths"
+} else {
+  Write-Output "  Source paths:"
+  $SourcePaths | ForEach-Object {
+    Write-Output "    $_"
+  }
+}
+#endregion
 
 
 #region Misc functions
@@ -166,7 +256,7 @@ function Confirm-ValidateUserImageNames {
       else {
         if ($HubImageDataHashTable.Keys -contains $TestImageTagName) {
           #region Programming note
-          # if the image name is valid and not installed locally we could just run the 'docker pull' command
+          # if the image name is valid but not installed locally we could just run the 'docker pull' command
           # ourselves programmatically.  however, pulling down that much data (WindowsServerCore is 5GB!) is
           # really something the user should initiate.
           #endregion
@@ -434,17 +524,20 @@ function Get-DockerContainerStatus {
     $Params = @("ps", "-a", "--format", "{{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}")
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    $ContainerInfo = $null
     # now parse results to get individual properties
-    $ContainerInfo = $Results | ForEach-Object {
-      # extract 4 items from tab separated string
-      $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-      New-Object PSObject -Property ([ordered]@{
+    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
+      $ContainerInfo = $Results | ForEach-Object {
+        # extract 4 items from tab separated string
+        $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
+        New-Object PSObject -Property ([ordered]@{
           ContainerId = $Match.Matches.Groups[1].Value
           Name        = $Match.Matches.Groups[2].Value
           Image       = $Match.Matches.Groups[3].Value
           Status      = $Match.Matches.Groups[4].Value
         })
       }
+    }
     $ContainerInfo
   }
 }
@@ -472,11 +565,13 @@ function Get-DockerImageStatus {
     $Params = @("images", $DockerHubRepository, "--format", "{{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.Size}}`t{{.CreatedSince}}")
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    $ImageInfo = $null
     # now parse results to get individual properties
-    $ImageInfo = $Results | ForEach-Object {
-      # extract 5 items from tab separated string
-      $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-      New-Object PSObject -Property ([ordered]@{
+    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
+      $ImageInfo = $Results | ForEach-Object {
+        # extract 5 items from tab separated string
+        $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
+        New-Object PSObject -Property ([ordered]@{
           Repository   = $Match.Matches.Groups[1].Value
           Tag          = $Match.Matches.Groups[2].Value
           ImageId      = $Match.Matches.Groups[3].Value
@@ -484,6 +579,7 @@ function Get-DockerImageStatus {
           CreatedSince = $Match.Matches.Groups[5].Value
         })
       }
+    }
     $ImageInfo
   }
 }
@@ -493,7 +589,7 @@ function Get-DockerImageStatus {
 #region Function: Invoke-TestScriptInDockerContainer
 <#
 .SYNOPSIS
-Executes PowerShell script on local container
+Executes PowerShell script in local container
 .DESCRIPTION
 Executes script $ContainerTestFilePath on container $ContainerName at path $ContainerTestFolderPath
 If error occurs, reports error and exits script.
@@ -531,12 +627,13 @@ function Invoke-TestScriptInDockerContainer {
     # capture output $Results; don't exit on error
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
-    # my test script, when used with the -Quiet param, is designed to return ONLY $true if everything
-    # worked. so if anything other than $true returned assume error and report results
+    # my test script in $ContainerTestFilePath when used with the -Quiet param, is designed to
+    # return ONLY $true if everything worked. so if anything other than $true is returned assume 
+    # error and report results
     if ($Results -ne $null -and $Results -ne $true) {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
     } else {
-      Write-Output "    Test script completed successfully"
+      Write-Output "  Test script completed successfully"
     }
   }
 }
