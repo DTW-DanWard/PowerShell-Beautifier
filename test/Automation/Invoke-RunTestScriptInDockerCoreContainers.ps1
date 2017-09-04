@@ -1,14 +1,9 @@
 # To do:
 
-# Script help
-  # in help describe path building of path for test folder path, test file path and option
+# finish / review script help, all script help, more examples
 
-  # Validate $SourcePaths
-
-# get temp folder by running command in Docker
-#  [System.IO.Path]::GetTempPath()
-#  add new global variable
-#  remove param ContainerTestFolderPath
+# Validate $SourcePaths - Test-Path
+# don't accept from pipeline
 
 # New function to return docker Go template to
 #  return string with `t formatting
@@ -24,9 +19,6 @@
 # Refactor Get-DockerContainerStatus and Get-DockerImageStatus
 #   DIFFERENT PROPERTY PSOBJECTS VALUES FROM FORMAT VALUES
 
-
-# ?Validate $ContainerTestFolderPath
-#   Need to do if removing?
 
 # Add parameter for Quiet option, returns $true or $false
 #   batch info to output in case of error?
@@ -48,7 +40,9 @@
 # run script through beautifier
 
 # download centos7
-# Need to test on Nano Server and ServerCore
+# Need to test on Nano Server
+#  add example in Get-DockerContainerTempFolderPath
+#    help with temp path
 # officially test ubuntu, centos and nano
 
 # Validate params for stuff to copy, stuff to run
@@ -66,23 +60,24 @@ local Docker containers running PowerShell Core images from the official Microso
 Docker hub. Performs these steps:
  - validates user-specified image names with local images and Docker hub versions;
  - for each valid Docker image name:
-   - ensures container exists for testing (creates if necessary);
+   - ensures container exists for this image, creating if necessary;
    - ensures container is running;
-   - copies one or more folders and/or files from local computer to container;
-   - executes command (i.e. launches test script) in container;
+   - get temp folder path from container;
+   - copies files and/or folders, including test script, from computer to container temp path;
+   - runs test script in container;
    - stops container.
 .PARAMETER SourcePaths
 Folders and/or files on local machine to copy to container
-.PARAMETER ContainerTestFilePath
-In container: the relative path to the test script (with any params) to launch test
-.PARAMETER ContainerTestFolderPath
-In container: full path to folder in which to copies ContainerTestFilePath files
-(default /tmp)
-.PARAMETER ErrorMessage
-Optional message to display before all error info
+.PARAMETER TestFileAndParams
+Path to the test script, with params,) to run test; path is relative to SourcePaths 
+.PARAMETER TestImageNames
+Docker image names to test against. Default value: "ubuntu16.04", "centos7"
+.PARAMETER DockerHubRepository
+Docker hub repository team/project name. Default value: "microsoft/powershell"
+
 .EXAMPLE
-Out-ErrorInfo -Command "docker" -Parameters "--notaparam" -ErrorInfo $CapturedError
-# Writes command, parameters and error info to output
+.\Invoke-RunTestScriptInDockerCoreContainers.ps1 -SourcePaths c:\MyCode 
+
 #>
 
 #region Script parameters
@@ -91,12 +86,10 @@ Out-ErrorInfo -Command "docker" -Parameters "--notaparam" -ErrorInfo $CapturedEr
 # be used by others with (perferably) no code changes. See readme.md in same folder as this
 # script for more information about modifying this for your own needs.
 param(
-  [string[]]$SourcePaths = "C:\Code\GitHub\PowerShell-Beautifier",
-  [string]$ContainerTestFilePath = "PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet",
-  [string]$ContainerTestFolderPath = "/tmp",
-  [string[]]$TestImageNames = @("ubuntu16.04", "centos7"),
-  [string]$DockerHubRepository = "microsoft/powershell"
-  
+  [string[]]$SourcePaths = 'C:\Code\GitHub\PowerShell-Beautifier',
+  [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
+  [string[]]$TestImageNames = @('ubuntu16.04', 'centos7'),
+  [string]$DockerHubRepository = 'microsoft/powershell'
 )
 #endregion
 
@@ -107,8 +100,7 @@ param(
 #region Output startup info
 Write-Output " "
 Write-Output "Testing with these values:"
-Write-Output "  Test file:        $ContainerTestFilePath"
-Write-Output "  Container path:   $ContainerTestFolderPath"
+Write-Output "  Test file:        $TestFileAndParams"
 Write-Output "  Docker hub repo:  $DockerHubRepository"
 Write-Output "  Images names:     $TestImageNames"
 if ($SourcePaths.Count -eq 1) {
@@ -203,7 +195,6 @@ function Invoke-RunCommand {
     [ref]$Results,
     [string]$ErrorMessage,
     [switch]$ExitOnError
-
   )
   #endregion
   process {
@@ -227,7 +218,7 @@ function Invoke-RunCommand {
 .SYNOPSIS
 Validates script param TestImageNames entries
 .DESCRIPTION
-Validates script param $TestImageNames entries by comparing against locally
+Validates script parameter $TestImageNames entries by comparing against locally
 installed images for repository $DockerHubRepository with same name supplied
 by user.  If image is found locally it is added to reference parameter ValidImageNames.
 If not found locally but is valid for repository $DockerHubRepository, outputs
@@ -425,15 +416,17 @@ function Confirm-DockerInstalled {
 #region Function: Copy-FilesToDockerContainer
 <#
 .SYNOPSIS
-Copies $SourcePaths files to local container $ContainerName
+Copies $SourcePaths files to local container ContainerName
 .DESCRIPTION
-Copies all $SourcePaths files to local container $ContainerName putting
-files under folder $ContainerTestFolderPath
+Copies all $SourcePaths files to local container ContainerName putting
+files under folder ContainerPath
 .PARAMETER ContainerName
 Name of container to copy files to.
+.PARAMETER ContainerPath
+Path in container to copy files to.
 .EXAMPLE
-Copy-FilesToDockerContainer MyContainer
-# copies files from $SourcePaths local container named MyContainer under path $ContainerTestFolderPath
+Copy-FilesToDockerContainer -ContainerName MyContainer -ContainerPath /tmp
+# copies files from $SourcePaths local container named MyContainer under path ContainerPath
 #>
 function Copy-FilesToDockerContainer {
   #region Function parameters
@@ -441,17 +434,21 @@ function Copy-FilesToDockerContainer {
   param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$ContainerName
-  )
+    [string]$ContainerName,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerPath
+
+    )
   #endregion
   process {
-    Write-Output "  Copying source content to container under $ContainerTestFolderPath"
+    Write-Output "  Copying source content to temp container folder $ContainerPath"
     # for each source file path, copy to docker container
     $SourcePaths | ForEach-Object {
       $SourcePath = $_
       Write-Output "    $SourcePath"
       $Cmd = "docker"
-      $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerTestFolderPath))
+      $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerPath))
       # capture output and discard; don't exit on error
       $Results = $null
       Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
@@ -498,6 +495,57 @@ function Initialize-DockerContainerAndStart {
     # capture output and discard; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+  }
+}
+#endregion
+
+
+#region Function: Get-DockerContainerTempFolderPath
+<#
+.SYNOPSIS
+Gets temp folder path in container $Container
+.DESCRIPTION
+Gets temp folder path inside running container $Container by running
+[System.IO.Path]::GetTempPath()
+If container is not running exists script with error.
+.PARAMETER ContainerName
+Name of container to create.
+.EXAMPLE
+Get-DockerContainerTempFolderPath -ContainerName microsoft_powershell_ubuntu16.04
+/tmp
+#>
+function Get-DockerContainerTempFolderPath {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ContainerName,
+    [Parameter(Mandatory = $true)]
+    [ref]$Path
+  )
+  #endregion
+  process {
+    Write-Output "  Getting temp folder path in container"
+    # get container info for $ContainerName
+    $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Name -eq $ContainerName }
+    # this error handling shouldn't be needed; at this point in the script
+    # the container name has been validiated and started, but just in case
+    # if no container exists or container not started, exit with error
+    if ($ContainerInfo -eq $null) {
+      Write-Output "Container $ContainerName not found; exiting script"
+      exit
+    } elseif (! $ContainerInfo.Status.StartsWith("Up")) {
+      Write-Output "Container $ContainerName isn't running but it should be; exiting script"
+      exit
+    }
+    $Cmd = "docker"
+    [scriptblock]$ScriptInContainerToGetTempPath = [scriptblock]::Create('[System.IO.Path]::GetTempPath()')
+    $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToGetTempPath)
+    # capture output and return; if error, Invoke-RunCommand exits script
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    $Path.value = $Results
   }
 }
 #endregion
@@ -591,13 +639,15 @@ function Get-DockerImageStatus {
 .SYNOPSIS
 Executes PowerShell script in local container
 .DESCRIPTION
-Executes script $ContainerTestFilePath on container $ContainerName at path $ContainerTestFolderPath
-If error occurs, reports error and exits script.
+Executes script ScriptPath in container ContainerName; if error occurs, reports
+error and exits script.
 .PARAMETER ContainerName
 Name of container to use.
+.PARAMETER ScriptPath
+Path in container to run script.
 .EXAMPLE
-Invoke-TestScriptInDockerContainer MyContainer
-# Executes script $ContainerTestFilePath on container MyContainer at path $ContainerTestFolderPath
+Invoke-TestScriptInDockerContainer MyContainer /tmp/MyScript.ps1
+# Executes script /tmp/MyScript.ps1 in container
 #>
 function Invoke-TestScriptInDockerContainer {
   #region Function parameters
@@ -605,8 +655,11 @@ function Invoke-TestScriptInDockerContainer {
   param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$ContainerName
-  )
+    [string]$ContainerName,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ScriptPath
+    )
   #endregion
   process {
     Write-Output "  Running test script on container"
@@ -620,14 +673,13 @@ function Invoke-TestScriptInDockerContainer {
     # first; if you try passing it in as a string it will not execute no matter how you format it.
     #endregion
     $Cmd = "docker"
-    $ScriptInContainerToRunTestText = Join-Path -Path $ContainerTestFolderPath -ChildPath $ContainerTestFilePath
-    [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptInContainerToRunTestText)
+    [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptPath)
     $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToRunTest)
 
     # capture output $Results; don't exit on error
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
-    # my test script in $ContainerTestFilePath when used with the -Quiet param, is designed to
+    # my test script in $TestFileAndParams when used with the -Quiet param, is designed to
     # return ONLY $true if everything worked. so if anything other than $true is returned assume 
     # error and report results
     if ($Results -ne $null -and $Results -ne $true) {
@@ -708,18 +760,29 @@ function Stop-DockerContainer {
 #endregion
 
 
+
+
+# asdf remove
+
+# $TempPath = $null
+# Get-DockerContainerTempFolderPath microsoft_powershell_ubuntu16.04 ([ref]$TempPath)
+# Write-Output $TempPath
+# $Path = Join-Path -Path $TempPath -ChildPath $TestFileAndParams
+# Write-Output $Path
+# exit
+
+
 #region Define 'global' (script-level) variables
 # besides the script parameters, these are the other 'global' (script-level) variables
 # but they are only used in the code below here
 
 # Docker image information from Docker hub for project $DockerHubRepository stored
 # as an array of PSObjects
-$HubImageDataPSObject = $null
+[object[]]$HubImageDataPSObject = $null
 
 # same data as in $HubImageDataPSObject but in a hash table of hash tables (easier
 # lookup) plus additional entry added for ContainerName (safe/sanitized name for container)
-$HubImageDataHashTable = $null
-
+[hashtable]$HubImageDataHashTable = $null
 #endregion
 
 # Programming note: to improve simplicity and readability, if any of the below functions
@@ -796,14 +859,19 @@ $ValidTestImageTagNames | ForEach-Object {
     }
   }
 
+  # temp folder path inside container
+  [string]$ContainerTestFolderPath = $null
+  Get-DockerContainerTempFolderPath -ContainerName $ContainerName ([ref]$ContainerTestFolderPath)
+
   # copy items in script param $SourcePaths to container $ContainerName to location
   # under folder $ContainerTestFolderPath
   # does not exit if error so container can be stopped
-  Copy-FilesToDockerContainer -ContainerName $ContainerName
+  Copy-FilesToDockerContainer -ContainerName $ContainerName -ContainerPath $ContainerTestFolderPath
 
-  # run test script $ContainerTestFilePath in container $ContainerName at path $ContainerTestFolderPath
-  # does not exit if error so container can be stopped
-  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName
+  # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams  
+  # if error does not exit so container can be stopped after
+  $ContainerScriptPath = Join-Path -Path $ContainerTestFolderPath -ChildPath $TestFileAndParams
+  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath
 
   # stop local container
   Stop-DockerContainer -ContainerName $ContainerName
