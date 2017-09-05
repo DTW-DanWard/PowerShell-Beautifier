@@ -1,27 +1,20 @@
 # To do:
 
 # finish / review script help, all script help, more examples
+# split example across multiple lines with ` for readability 
 
-# Validate $SourcePaths - Test-Path
-# don't accept from pipeline
+# add help to new functions
+#   Get-DockerGoTemplate - adds . prefix to field name
+#   Convert-DockerTextToPSObjects
 
-# New function to return docker Go template to
-#  return string with `t formatting
-# New function to parse docker results into PSObjects
-#  Go template, for this function placeholder must be tab `t separated
-#  documentation see docker --format format, for example
-#    https://docs.docker.com/engine/reference/commandline/ps/#formatting
-#  or pass in array of placeholders
-#  pass in docker format tab separated
-#    {{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}
-#    removes {{. and }}, splits on `t
-#    for each property, Adds property
-# Refactor Get-DockerContainerStatus and Get-DockerImageStatus
-#   DIFFERENT PROPERTY PSOBJECTS VALUES FROM FORMAT VALUES
+# Add parameter for -Quiet option
+#   returns $true if no errors, error text and $false if errors
+#     batch info to output in case of error?
+#     or just output container name (if -Quiet) in Write-Error function
+#     with note about 
 
-
-# Add parameter for Quiet option, returns $true or $false
-#   batch info to output in case of error?
+# Make sure if error in one container, exit entire script
+# Switch param - continue on error?
 
 # Confirm-ValidateUserImageNames - pass in image data
 # move all main processing code to Invoke-Main so no 'global' variables besides script parameters
@@ -30,8 +23,12 @@
 #   Notes about automating container script for own uses
 #   Setting up test script
 
+#  ?Remove $ from variables in function help
+
 # See keith hills blog post about processing paths, literalpaths
 # https://rkeithhill.wordpress.com/2016/02/17/creating-a-powershell-command-that-process-paths-using-visual-studio-code/
+
+
 
 # one last test of all error handling
 #  start with no containers and no images
@@ -63,13 +60,14 @@ Docker hub. Performs these steps:
    - ensures container exists for this image, creating if necessary;
    - ensures container is running;
    - get temp folder path from container;
-   - copies files and/or folders, including test script, from computer to container temp path;
+   - copies user's files and/or folders, including test script, from computer to 
+     container temp folder;
    - runs test script in container;
    - stops container.
 .PARAMETER SourcePaths
 Folders and/or files on local machine to copy to container
 .PARAMETER TestFileAndParams
-Path to the test script, with params,) to run test; path is relative to SourcePaths 
+Path to the test script - with params - to run test; path is relative to SourcePaths 
 .PARAMETER TestImageNames
 Docker image names to test against. Default value: "ubuntu16.04", "centos7"
 .PARAMETER DockerHubRepository
@@ -213,7 +211,7 @@ function Invoke-RunCommand {
 #endregion
 
 
-#region Functions: Confirm-ValidateUserImageNames
+#region Function: Confirm-ValidateUserImageNames
 <#
 .SYNOPSIS
 Validates script param TestImageNames entries
@@ -274,12 +272,12 @@ function Confirm-ValidateUserImageNames {
 #endregion
 
 
-#region Functions: Confirm-DockerHubRepositoryFormatCorrect
+#region Function: Confirm-DockerHubRepositoryFormatCorrect
 <#
 .SYNOPSIS
-Confirms script param $DockerHubRepository is <team name>/<project name>
+Confirms script param DockerHubRepository is <team name>/<project name>
 .DESCRIPTION
-Confirms script param $DockerHubRepository is <team name>/<project name>, 
+Confirms script param DockerHubRepository is <team name>/<project name>, 
 i.e. it should have only 1 slash in it 'in the middle' of other characters.
 If correct, does nothing, if incorrect writes info and exits script.
 #>
@@ -298,7 +296,74 @@ function Confirm-DockerHubRepositoryFormatCorrect {
 #endregion
 
 
-#region Functions: Convert-ImageDataToHashTables
+#region Function: Confirm-SourcePathsValid
+<#
+.SYNOPSIS
+Confirms script param SourcePaths paths all exist
+.DESCRIPTION
+Confirms script param SourcePaths paths all exist. If all paths exist, function
+does nothing; if they don't, error info is displayed and script exists.
+#>
+function Confirm-SourcePathsValid {
+  process {
+    $SourcePaths | ForEach-Object {
+      $SourcePath = $_
+      if ($false -eq (Test-Path -Path $SourcePath)) {
+        Write-Output "Source path not found: $SourcePath"
+        exit
+      }
+    }
+  }
+}
+#endregion
+
+
+#region Function: Convert-DockerTextToPSObjects
+
+# asdf add help here
+
+function Convert-DockerTextToPSObjects {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$GoFields,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$DockerText
+  )
+  #endregion
+  process {
+    #region Get regex for parsing a string from Docker text
+    # Docker string will be field values separated by tabs so need a regex like this:
+    #   ([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)
+    [string]$RegEx = ""
+    for ($i = 1; $i -le $GoFields.Count; $i++) {
+      if ($RegEx.Length -gt 0) { $RegEx += "`t" }
+      $RegEx += "([^`t]+)"
+    }
+    #endregion
+    $PSObjects = $null
+    $DockerText | ForEach-Object {
+      # break up $DockerText line into individual fields 
+      $Match = Select-String -InputObject $_ -Pattern $Regex
+      # create empty object PSObject to store data
+      $PSObject = New-Object PSObject
+      # now add property for each GoField
+      for ($i = 0; $i -lt $GoFields.Count; $i++) {
+        $PSObject = Add-Member -InputObject $PSObject -NotePropertyName $GoFields[$i] -NotePropertyValue ($Match.Matches.Groups[($i + 1)].Value) -PassThru
+      }
+      $PSObjects += $PSObject
+    }
+    $PSObjects
+  }
+}
+
+#>
+
+
+#region Function: Convert-ImageDataToHashTables
 <#
 .SYNOPSIS
 Converts Docker hub project image/tags data to hashtable of hashtables
@@ -361,7 +426,35 @@ function Convert-ImageDataToHashTables {
 #endregion
 
 
-#region Functions: Get-DockerHubProjectImageInfo
+#region Function: Get-DockerGoTemplate
+
+# asdf Add help here!
+#  adds . prefix to field name
+
+function Get-DockerGoTemplate {
+  #region Function parameters
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$GoFields
+  )
+  #endregion
+  process {
+    [string]$Template = ""
+    # for each field, add to template with field surrounded in {{ }} and
+    # separated by `t tabs, for example: 
+    #   {{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}
+    $GoFields | ForEach-Object {
+      if ($Template.Length -gt 0) { $Template += "`t" }
+      $Template += '{{.' + $_ + '}}'
+    }
+    $Template
+  }
+}
+#endregion
+
+#region Function: Get-DockerHubProjectImageInfo
 <#
 .SYNOPSIS
 Returns Docker hub project image/tag info for $DockerHubRepository
@@ -442,7 +535,7 @@ function Copy-FilesToDockerContainer {
     )
   #endregion
   process {
-    Write-Output "  Copying source content to temp container folder $ContainerPath"
+    Write-Output "  Copying source content to container temp folder $ContainerPath"
     # for each source file path, copy to docker container
     $SourcePaths | ForEach-Object {
       $SourcePath = $_
@@ -528,7 +621,7 @@ function Get-DockerContainerTempFolderPath {
   process {
     Write-Output "  Getting temp folder path in container"
     # get container info for $ContainerName
-    $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Name -eq $ContainerName }
+    $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
     # this error handling shouldn't be needed; at this point in the script
     # the container name has been validiated and started, but just in case
     # if no container exists or container not started, exit with error
@@ -561,32 +654,24 @@ ContainerId, Name, Image, Status
 If error occurs, reports error and exits script.
 .EXAMPLE
 Get-DockerContainerStatus
-ContainerId  Name        Image                            Status
------------  ----        -----                            ------
+Id           Names       Image                            Status
+--           -----       -----                            ------
 1c0fc1715cd8 ubuntu16.04 microsoft/powershell:ubuntu16.04 Exited (0) 17 minutes ago
 422b3e0d337a test6       microsoft/powershell:ubuntu16.04 Exited (0) 5 days ago
 #>
 function Get-DockerContainerStatus {
   process {
+    [string[]]$DockerGoFormatFields = @('ID','Names','Image','Status')
     $Cmd = "docker"
-    $Params = @("ps", "-a", "--format", "{{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}")
+    $Params = @("ps", "-a", "--format", (Get-DockerGoTemplate -GoFields $DockerGoFormatFields))
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
-    $ContainerInfo = $null
-    # now parse results to get individual properties
+    # now parse results to get individual properties, if no data return $null
     if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
-      $ContainerInfo = $Results | ForEach-Object {
-        # extract 4 items from tab separated string
-        $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-        New-Object PSObject -Property ([ordered]@{
-          ContainerId = $Match.Matches.Groups[1].Value
-          Name        = $Match.Matches.Groups[2].Value
-          Image       = $Match.Matches.Groups[3].Value
-          Status      = $Match.Matches.Groups[4].Value
-        })
-      }
+      Convert-DockerTextToPSObjects -GoFields $DockerGoFormatFields -DockerText $Results
+    } else {
+      $null
     }
-    $ContainerInfo
   }
 }
 #endregion
@@ -603,32 +688,23 @@ If error occurs, reports error and exits script.
 .EXAMPLE
 Get-DockerImageStatus | Format-Table
 
-Repository           Tag         ImageId      Size   CreatedSince
-----------           ---         -------      ----   ------------
+Repository           Tag         Id           Size   CreatedSince
+----------           ---         --           ----   ------------
 microsoft/powershell ubuntu16.04 1c33de461473 365MB  2 months ago
 #>
 function Get-DockerImageStatus {
   process {
+    [string[]]$DockerGoFormatFields = @('Repository','Tag','ID','Size','CreatedSince')
     $Cmd = "docker"
-    $Params = @("images", $DockerHubRepository, "--format", "{{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.Size}}`t{{.CreatedSince}}")
+    $Params = @("images", $DockerHubRepository, "--format", (Get-DockerGoTemplate -GoFields $DockerGoFormatFields))
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
-    $ImageInfo = $null
-    # now parse results to get individual properties
+    # now parse results to get individual properties, if no data return $null
     if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
-      $ImageInfo = $Results | ForEach-Object {
-        # extract 5 items from tab separated string
-        $Match = Select-String -InputObject $_ -Pattern "([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)"
-        New-Object PSObject -Property ([ordered]@{
-          Repository   = $Match.Matches.Groups[1].Value
-          Tag          = $Match.Matches.Groups[2].Value
-          ImageId      = $Match.Matches.Groups[3].Value
-          Size         = $Match.Matches.Groups[4].Value
-          CreatedSince = $Match.Matches.Groups[5].Value
-        })
-      }
+      Convert-DockerTextToPSObjects -GoFields $DockerGoFormatFields -DockerText $Results
+    } else {
+      $null
     }
-    $ImageInfo
   }
 }
 #endregion
@@ -762,14 +838,6 @@ function Stop-DockerContainer {
 
 
 
-# asdf remove
-
-# $TempPath = $null
-# Get-DockerContainerTempFolderPath microsoft_powershell_ubuntu16.04 ([ref]$TempPath)
-# Write-Output $TempPath
-# $Path = Join-Path -Path $TempPath -ChildPath $TestFileAndParams
-# Write-Output $Path
-# exit
 
 
 #region Define 'global' (script-level) variables
@@ -800,6 +868,9 @@ Confirm-DockerInstalled
 
 # confirm script parameter $DockerHubRepository is <team name>/<project name>
 Confirm-DockerHubRepositoryFormatCorrect
+
+# confirm all the user-supplied paths exist
+Confirm-SourcePathsValid
 
 # get Docker image names and other details from online Docker hub project tags data (format PSObjects)
 $HubImageDataPSObject = Get-DockerHubProjectImageInfo
@@ -841,7 +912,7 @@ $ValidTestImageTagNames | ForEach-Object {
   # get sanitized container name (based on repository + image name) for this image
   $ContainerName = ($HubImageDataHashTable[$ValidTestImageTagName]).ContainerName
   # get container info for $ContainerName
-  $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Name -eq $ContainerName }
+  $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
   # if no container exists, create one and start it
   if ($ContainerInfo -eq $null) {
     # create docker container and start it
