@@ -1,16 +1,24 @@
 # To do:
 
-# Add parameter for -Quiet option
-#   returns $true if no errors, error text and $false if errors
-#     batch info to output in case of error?
-#     or just output container name (if -Quiet) in Write-Error function
-#     with note about 
+# asdf references - don't delete this yet
+
+# review regions in ISE cause they still don't work in VS Code... :(
+# spell check comments
+# run script through beautifier
+
+# Go through TechTasks notes for anything else missing
 
 # Add readme.md to Automation folder
 #   Notes about automating container script for own uses
 #   Setting up test script
 
-# Go through TechTasks notes for anything else missing
+# download centos7
+# Need to test on Nano Server - and all other except Core
+#  add example in Get-DockerContainerTempFolderPath
+#    help with temp path
+# officially test ubuntu, centos and nano
+
+# finish through here Wednesday night
 
 # Migrate all notes to OneNote
 
@@ -18,15 +26,7 @@
   # Remove $ from variables in function help
 # one last test of all error handling
 #  start with no containers and no images
-# review regions in ISE cause they still don't work in VS Code... :(
-# spell check comments
-# run script through beautifier
 
-# download centos7
-# Need to test on Nano Server - and all other
-#  add example in Get-DockerContainerTempFolderPath
-#    help with temp path
-# officially test ubuntu, centos and nano
 
 
 <#
@@ -57,6 +57,12 @@ see example for more details
 Docker image names to test against. Default values: "ubuntu16.04", "centos7"
 .PARAMETER DockerHubRepository
 Docker hub repository team/project name. Default value: "microsoft/powershell"
+.PARAMETER Quiet
+Run test with as little or no output possible.  If all tests are successful on all 
+containers, returns only $true.  However if a container is specified in TestImageNames
+that does not exist locally, that info will be output.  In addition, if an error 
+occurs running a Docker command or running the test script, that info will also
+be output and $true will not be returned.
 .EXAMPLE
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
   -SourcePaths 'C:\Code\GitHub\PowerShell-Beautifier' `
@@ -90,26 +96,31 @@ Key details here:
 # be used by others with (perferably) no code changes. See readme.md in same folder as this
 # script for more information about modifying this for your own needs.
 param(
-  [string[]]$SourcePaths = 'C:\Code\GitHub\PowerShell-Beautifier',
+  [string[]]$SourcePaths = @('C:\Code\GitHub\PowerShell-Beautifier'),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
   [string[]]$TestImageNames = @('ubuntu16.04', 'centos7'),
-  [string]$DockerHubRepository = 'microsoft/powershell'
+  [string]$DockerHubRepository = 'microsoft/powershell',
+  [switch]$Quiet
 )
 #endregion
 
+# asdf set back to ubuntu and centos above
+
 
 #region Output startup info
-Write-Output " "
-Write-Output "Testing with these values:"
-Write-Output "  Test file:        $TestFileAndParams"
-Write-Output "  Docker hub repo:  $DockerHubRepository"
-Write-Output "  Images names:     $TestImageNames"
-if ($SourcePaths.Count -eq 1) {
-Write-Output "  Source paths:     $SourcePaths"
-} else {
-  Write-Output "  Source paths:"
-  $SourcePaths | ForEach-Object {
-    Write-Output "    $_"
+if ($Quiet -eq $false) {
+  Write-Output " "
+  Write-Output "Testing with these values:"
+  Write-Output "  Test file:        $TestFileAndParams"
+  Write-Output "  Docker hub repo:  $DockerHubRepository"
+  Write-Output "  Images names:     $TestImageNames"
+  if ($SourcePaths.Count -eq 1) {
+  Write-Output "  Source paths:     $SourcePaths"
+  } else {
+    Write-Output "  Source paths:"
+    $SourcePaths | ForEach-Object {
+      Write-Output "    $_"
+    }
   }
 }
 #endregion
@@ -525,7 +536,6 @@ function Get-DockerHubProjectImageInfo {
   }
 }
 #endregion
-
 #endregion
 
 
@@ -581,11 +591,11 @@ function Copy-FilesToDockerContainer {
     )
   #endregion
   process {
-    Write-Output "  Copying source content to container temp folder $ContainerPath"
+    if ($Quiet -eq $false) { Write-Output "  Copying source content to container temp folder $ContainerPath" }
     # for each source file path, copy to docker container
     $SourcePaths | ForEach-Object {
       $SourcePath = $_
-      Write-Output "    $SourcePath"
+      if ($Quiet -eq $false) { Write-Output "    $SourcePath" }
       $Cmd = "docker"
       $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerPath))
       # capture output and discard; don't exit on error
@@ -628,7 +638,7 @@ function Initialize-DockerContainerAndStart {
   )
   #endregion
   process {
-    Write-Output "  Preexisting container not found; creating and starting"
+    if ($Quiet -eq $false) { Write-Output "  Preexisting container not found; creating and starting" }
     $Cmd = "docker"
     $Params = @("run", "--name", $ContainerName, "-t", "-d", ($DockerHubRepository + ":" + $ImageName))
     # capture output and discard; if error, Invoke-RunCommand exits script
@@ -665,7 +675,7 @@ function Get-DockerContainerTempFolderPath {
   )
   #endregion
   process {
-    Write-Output "  Getting temp folder path in container"
+    if ($Quiet -eq $false) { Write-Output "  Getting temp folder path in container" }
     # get container info for $ContainerName
     $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
     # this error handling shouldn't be needed; at this point in the script
@@ -762,16 +772,16 @@ function Get-DockerImageStatus {
 Executes PowerShell script in local container
 .DESCRIPTION
 Executes script ScriptPath in container ContainerName; if error occurs, reports
-error and sets parameter ErrorOccurred = $true.
+error and sets parameter TestScriptSuccess = $false (else $true).
 .PARAMETER ContainerName
 Name of container to use.
 .PARAMETER ScriptPath
 Path in container to run script.
-.PARAMETER ErrorOccurred
+.PARAMETER TestScriptSuccess
 Reference parameter! $true if an error occurred running test
 .EXAMPLE
-Invoke-TestScriptInDockerContainer MyContainer /tmp/MyScript.ps1 ([ref]$ErrorOccurred)
-# Executes script /tmp/MyScript.ps1 in container, sets $ErrorOccurred = $true if error
+Invoke-TestScriptInDockerContainer MyContainer /tmp/MyScript.ps1 ([ref]$TestScriptSuccess)
+# Executes script /tmp/MyScript.ps1 in container, sets $TestScriptSuccess = $false if error
 #>
 function Invoke-TestScriptInDockerContainer {
   #region Function parameters
@@ -785,11 +795,11 @@ function Invoke-TestScriptInDockerContainer {
     [string]$ScriptPath,
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [ref]$ErrorOccurred
+    [ref]$TestScriptSuccess
   )
   #endregion
   process {
-    Write-Output "  Running test script on container"
+    if ($Quiet -eq $false) { Write-Output "  Running test script on container" }
     #region A handy tip
     # if you are reading this script, this next bit contains the biggest gotcha I encountered when
     # writing the docker commands to run in PowerShell. if you were to type a docker execute command in a
@@ -810,10 +820,11 @@ function Invoke-TestScriptInDockerContainer {
     # return ONLY $true if everything worked. so if anything other than $true is returned assume 
     # error and report results
     if ($Results -ne $null -and $Results -ne $true) {
+      $TestScriptSuccess.Value = $false
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
-      $ErrorOccurred.Value = $true
     } else {
-      Write-Output "  Test script completed successfully"
+      $TestScriptSuccess.Value = $true
+      if ($Quiet -eq $false) { Write-Output "  Test script completed successfully" }
     }
   }
 }
@@ -842,7 +853,7 @@ function Start-DockerContainer {
   )
   #endregion
   process {
-    Write-Output "  Starting container"
+    if ($Quiet -eq $false) { Write-Output "  Starting container" }
     $Cmd = "docker"
     $Params = @("start", $ContainerName)
     # capture output and discard; if error, Invoke-RunCommand exits script
@@ -875,7 +886,7 @@ function Stop-DockerContainer {
   )
   #endregion
   process {
-    Write-Output "  Stopping container"
+    if ($Quiet -eq $false) { Write-Output "  Stopping container" }
     $Cmd = "docker"
     $Params = @("stop", $ContainerName)
     # capture output and discard; if error, Invoke-RunCommand exits script
@@ -943,12 +954,15 @@ if ($ValidTestImageTagNames -eq $null) {
 #endregion
 
 #region Loop through valid local images, create/start container, copy code to it, run test and stop container
-Write-Output "Testing on these containers: $ValidTestImageTagNames"
+if ($Quiet -eq $false) { Write-Output "Testing on these containers: $ValidTestImageTagNames" }
+
+# did all test scripts run successfully? start with $true but Invoke-TestScriptInDockerContainer
+# will set to $false if error
+[bool]$TestScriptSuccess = $true
 
 $ValidTestImageTagNames | ForEach-Object {
   $ValidTestImageTagName = $_
-  Write-Output " "
-  Write-Output $ValidTestImageTagName
+  if ($Quiet -eq $false) { Write-Output " "; Write-Output $ValidTestImageTagName }
 
   # get sanitized container name (based on repository + image name) for this image
   $ContainerName = ($HubImageDataHashTable[$ValidTestImageTagName]).ContainerName
@@ -960,10 +974,10 @@ $ValidTestImageTagNames | ForEach-Object {
     Initialize-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
   }
   else {
-    Write-Output "  Preexisting container found"
+    if ($Quiet -eq $false) { Write-Output "  Preexisting container found" }
     # if container not started, start it
     if ($ContainerInfo.Status.StartsWith("Up")) {
-      Write-Output "  Container already started"
+      if ($Quiet -eq $false) { Write-Output "  Container already started" }
     }
     else {
       # start local container
@@ -983,13 +997,22 @@ $ValidTestImageTagNames | ForEach-Object {
   # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams  
   # if error does not exit so container can be stopped after
   $ContainerScriptPath = Join-Path -Path $ContainerTestFolderPath -ChildPath $TestFileAndParams
-  [bool]$ErrorOccurred = $false
-  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath -ErrorOccurred ([ref]$ErrorOccurred)
+  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath -TestScriptSuccess ([ref]$TestScriptSuccess)
 
   # stop local container
   Stop-DockerContainer -ContainerName $ContainerName
 
   # if error occurred running test in container, exit now (i.e. after the container has been stopped)
-  if ($ErrorOccurred -eq $true) { exit }
+  if ($TestScriptSuccess -eq $false) {
+    # return TestScriptSuccess, which is false
+    $TestScriptSuccess
+    exit
+  }
 }
+#endregion
+
+#region If -Quiet and no errors occurred, return $true
+# if not -Quiet, don't return any value BUT if -Quiet and everything 
+# successful, return $true (best for automation)
+if ($Quiet -eq $true -and $TestScriptSuccess -eq $true) { $TestScriptSuccess }
 #endregion
