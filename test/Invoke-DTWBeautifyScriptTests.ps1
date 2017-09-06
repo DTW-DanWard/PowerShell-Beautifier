@@ -259,8 +259,8 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
         NewLine = "CRLF"
       }
       # if $IndentText passed, add that to params
-      if ($IndentText -ne $null) {
-        $Params.IndentText = $IndentText
+      if ($IndentText -ne $null ) {
+        $Params.IndentType = $IndentText
       }
       # finally: take the source file, run through beautifier and output in test folder
       if (!$Quiet) { Write-Output ('  File: ' + (Split-Path -Path $InputBadPath -Leaf)) }
@@ -419,9 +419,9 @@ if ($TestFolders -contains 'Whitespace') {
   $CorrectIndentationFileFourspace = $OutputTestIndentationFileFourspace.Replace($OutputTestFolderName,$CorrectFolderName)
   $CorrectIndentationFileTab = $OutputTestIndentationFileTab.Replace($OutputTestFolderName,$CorrectFolderName)
 
-  Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadIndentationFile -OutputTestPath $OutputTestIndentationFileTwoSpace -OutputCorrectPath $CorrectIndentationFileTwoSpace -IndentText '  '
-  Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadIndentationFile -OutputTestPath $OutputTestIndentationFileFourspace -OutputCorrectPath $CorrectIndentationFileFourspace -IndentText '    '
-  Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadIndentationFile -OutputTestPath $OutputTestIndentationFileTab -OutputCorrectPath $CorrectIndentationFileTab -IndentText "`t"
+  Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadIndentationFile -OutputTestPath $OutputTestIndentationFileTwoSpace -OutputCorrectPath $CorrectIndentationFileTwoSpace -IndentText TwoSpaces
+  Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadIndentationFile -OutputTestPath $OutputTestIndentationFileFourspace -OutputCorrectPath $CorrectIndentationFileFourspace -IndentText FourSpaces
+  Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadIndentationFile -OutputTestPath $OutputTestIndentationFileTab -OutputCorrectPath $CorrectIndentationFileTab -IndentText Tabs
 
 }
 #endregion

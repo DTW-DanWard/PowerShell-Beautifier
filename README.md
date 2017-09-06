@@ -66,7 +66,7 @@ SYNOPSIS
 
 
 SYNTAX
-    Edit-DTWBeautifyScript [-SourcePath] <String> [[-DestinationPath] <String>] [[-IndentText] <String>]
+    Edit-DTWBeautifyScript [-SourcePath] <String> [[-DestinationPath] <String>] [[-IndentType] <String>]
     [-StandardOutput] [[-NewLine] <String>] [<CommonParameters>]
     [<CommonParameters>]
 
@@ -86,7 +86,7 @@ Commit your file, run a backup, run the beautify utility on a copy first, whatev
 So, assuming you've imported the module, how do you use it?
 
 ### Run on single file updating in place with 2 spaces indentation
-This rewrites the source file in place.  Two spaces is the default indent step so IndentText is not specified.
+This rewrites the source file in place.  Two spaces is the default indent step so IndentType is not specified.
 ```
 Edit-DTWBeautifyScript C:\temp\MyFile.ps1
 ```
@@ -94,7 +94,7 @@ Edit-DTWBeautifyScript C:\temp\MyFile.ps1
 ### Run on single file but indent with tabs
 This rewrites the source file in place using a tab at the indent step.
 ```
-Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -IndentText "`t"
+Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -IndentType Tabs
 ```
 
 ### Run on single file outputting to new file with 2 spaces indentation
