@@ -1,31 +1,21 @@
 # To do:
 
-# Test script using second example - explicity copy test script from
-# another location
-
 # Add parameter for -Quiet option
 #   returns $true if no errors, error text and $false if errors
 #     batch info to output in case of error?
 #     or just output container name (if -Quiet) in Write-Error function
 #     with note about 
 
-# Make sure if error in one container, exit entire script
-# Switch param - continue on error?
-
-# Confirm-ValidateUserImageNames - pass in image data
-# move all main processing code to Invoke-Main so no 'global' variables besides script parameters
-
 # Add readme.md to Automation folder
 #   Notes about automating container script for own uses
 #   Setting up test script
-
-# Remove $ from variables in function help
 
 # Go through TechTasks notes for anything else missing
 
 # Migrate all notes to OneNote
 
 # go through one last time with fine toothed comb
+  # Remove $ from variables in function help
 # one last test of all error handling
 #  start with no containers and no images
 # review regions in ISE cause they still don't work in VS Code... :(
@@ -55,6 +45,9 @@ Docker hub. Performs these steps:
      temp folder;
    - runs test script in container;
    - stops container.
+If an error occurs running the test script in one container, all processing ceases
+after that container is stopped; no additional containers are tested as it's likely
+the test script would just fail on those as well.
 .PARAMETER SourcePaths
 Folders and/or files on local machine to copy to container
 .PARAMETER TestFileAndParams
@@ -229,17 +222,26 @@ Validates script param TestImageNames entries
 Validates script parameter TestImageNames entries by comparing against locally
 installed images for repository DockerHubRepository with same name supplied
 by user.  If image is found locally it is added to reference parameter ValidImageNames.
-If not found locally but is valid for repository DockerHubRepository, outputs
+If not found locally but is valid for repository DockerHubRepository (i.e. from
+the hub data, image names passed in via DockerHubRepositoryImageNames), outputs
 command for user to run to download image.  If image is not found locally nor
 is found at repository $DockerHubRepository, writes error info but does not
 exit script.
+.PARAMETER DockerHubRepositoryImageNames
+Listing of valid image names direct from the Docker hub repository itself
 .PARAMETER ValidImageNames
-Reference parameter!  Valid image names in list TestImageNames are returned here
+Reference parameter! Any/all valid image names found in list TestImageNames are
+returned in this parameter
 #>
 function Confirm-ValidateUserImageNames {
   #region Function parameters
   [CmdletBinding()]
   param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$DockerHubRepositoryImageNames,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
     [ref]$ValidImageNames
   )
   #endregion
@@ -253,9 +255,9 @@ function Confirm-ValidateUserImageNames {
         $ValidImageNames.value += $TestImageTagName
       }
       else {
-        if ($HubImageDataHashTable.Keys -contains $TestImageTagName) {
+        if ($DockerHubRepositoryImageNames -contains $TestImageTagName) {
           #region Programming note
-          # if the image name is valid but not installed locally we could just run the 'docker pull' command
+          # if the image name is valid but not installed locally we *could* just run the 'docker pull' command
           # ourselves programmatically.  however, pulling down that much data (WindowsServerCore is 5GB!) is
           # really something the user should initiate.
           #endregion
@@ -269,7 +271,7 @@ function Confirm-ValidateUserImageNames {
           Write-Output " "
           Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
           Write-Output "Do you have an incorrect image name?  Valid image names are:"
-          $HubImageDataHashTable.Keys | Sort-Object | ForEach-Object {
+          $DockerHubRepositoryImageNames | Sort-Object | ForEach-Object {
             Write-Output "  $_"
           }
           Write-Output " "
@@ -760,14 +762,16 @@ function Get-DockerImageStatus {
 Executes PowerShell script in local container
 .DESCRIPTION
 Executes script ScriptPath in container ContainerName; if error occurs, reports
-error and exits script.
+error and sets parameter ErrorOccurred = $true.
 .PARAMETER ContainerName
 Name of container to use.
 .PARAMETER ScriptPath
 Path in container to run script.
+.PARAMETER ErrorOccurred
+Reference parameter! $true if an error occurred running test
 .EXAMPLE
-Invoke-TestScriptInDockerContainer MyContainer /tmp/MyScript.ps1
-# Executes script /tmp/MyScript.ps1 in container
+Invoke-TestScriptInDockerContainer MyContainer /tmp/MyScript.ps1 ([ref]$ErrorOccurred)
+# Executes script /tmp/MyScript.ps1 in container, sets $ErrorOccurred = $true if error
 #>
 function Invoke-TestScriptInDockerContainer {
   #region Function parameters
@@ -778,8 +782,11 @@ function Invoke-TestScriptInDockerContainer {
     [string]$ContainerName,
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$ScriptPath
-    )
+    [string]$ScriptPath,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [ref]$ErrorOccurred
+  )
   #endregion
   process {
     Write-Output "  Running test script on container"
@@ -804,6 +811,7 @@ function Invoke-TestScriptInDockerContainer {
     # error and report results
     if ($Results -ne $null -and $Results -ne $true) {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
+      $ErrorOccurred.Value = $true
     } else {
       Write-Output "  Test script completed successfully"
     }
@@ -876,26 +884,13 @@ function Stop-DockerContainer {
   }
 }
 #endregion
-
 #endregion
 
 
+# ################ 'main' begins here
 
 
 
-
-#region Define 'global' (script-level) variables
-# besides the script parameters, these are the other 'global' (script-level) variables
-# but they are only used in the code below here
-
-# Docker image information from Docker hub for project $DockerHubRepository stored
-# as an array of PSObjects
-[object[]]$HubImageDataPSObject = $null
-
-# same data as in $HubImageDataPSObject but in a hash table of hash tables (easier
-# lookup) plus additional entry added for ContainerName (safe/sanitized name for container)
-[hashtable]$HubImageDataHashTable = $null
-#endregion
 
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
@@ -916,11 +911,13 @@ Confirm-DockerHubRepositoryFormatCorrect
 # confirm all the user-supplied paths exist
 Confirm-SourcePathsValid
 
-# get Docker image names and other details from online Docker hub project tags data (format PSObjects)
-$HubImageDataPSObject = Get-DockerHubProjectImageInfo
-# convert $HubImageDataPSObject to hashtable of hashtables (easier lookup) and 
-# add sanitized ContainerName for each container
-$HubImageDataHashTable = Convert-ImageDataToHashTables -ImageDataPSObjects $HubImageDataPSObject
+# for project $DockerHubRepository, get Docker image names and other details from online Docker hub
+# project tags data (format of data is PSObjects)
+[object[]]$HubImageDataPSObject = Get-DockerHubProjectImageInfo
+
+# now convert data in $HubImageDataPSObject to a hash table of hash tables for easier lookup/usage
+# *plus* add an entry for ContainerName - a safe/sanitized name to re/use for the container
+[hashtable]$HubImageDataHashTable = Convert-ImageDataToHashTables -ImageDataPSObjects $HubImageDataPSObject
 
 #region If user didn't specify any values for TestImageNames, display valid values and exit
 if ($TestImageNames.Count -eq 0) {
@@ -936,7 +933,7 @@ if ($TestImageNames.Count -eq 0) {
 # listing of valid, locally installed image names
 [string[]]$ValidTestImageTagNames = $null
 # check user supplied images names, if valid will be stored in ValidTestImageTagNames 
-Confirm-ValidateUserImageNames -ValidImageNames ([ref]$ValidTestImageTagNames)
+Confirm-ValidateUserImageNames -DockerHubRepositoryImageNames ($HubImageDataHashTable.Keys) -ValidImageNames ([ref]$ValidTestImageTagNames)
 # check if no valid image names - exit
 if ($ValidTestImageTagNames -eq $null) {
   Write-Output "No locally installed images to test against; exiting."
@@ -986,9 +983,13 @@ $ValidTestImageTagNames | ForEach-Object {
   # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams  
   # if error does not exit so container can be stopped after
   $ContainerScriptPath = Join-Path -Path $ContainerTestFolderPath -ChildPath $TestFileAndParams
-  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath
+  [bool]$ErrorOccurred = $false
+  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath -ErrorOccurred ([ref]$ErrorOccurred)
 
   # stop local container
   Stop-DockerContainer -ContainerName $ContainerName
+
+  # if error occurred running test in container, exit now (i.e. after the container has been stopped)
+  if ($ErrorOccurred -eq $true) { exit }
 }
 #endregion
