@@ -8,7 +8,7 @@ Here's what happens at a high level:
 2. Copies the source script to a temp location; it's in the same folder as source but unique (time stamp) extension.  (FYI it does all its work on this temp file and only re/writes to the final destination if everything worked correctly.  This minimizes any chance of your script being inadvertently damaged.)
 3. Adds BOM to temp file if necessary - see [FAQ BOM rant](FAQ.md).
 4. Reads entire file into memory and tokenizes content.  More on this below.
-5. For each token. writes it content back to a temporary stream, possibly changing its value (*dir* -> *Get-ChildItem*).  More on this below.  As it writes tokens it uses its own internal rules about whether or not to add whitespace.  It also uses the IndentText parameter (default two spaces) for indenting within sections like loops, if/then sections, multi-line hash table declarations, etc.
+5. For each token. writes it content back to a temporary stream, possibly changing its value (*dir* -> *Get-ChildItem*).  More on this below.  As it writes tokens it uses its own internal rules about whether or not to add whitespace.  It also uses the IndentType parameter (default two spaces) for indenting within sections like loops, if/then sections, multi-line hash table declarations, etc.
 6. If the previous step completed successfully, writes the stream back to the temp file.  If *that* worked correctly, copies/overwrites temp file overwriting the source or the destination, if specified.
 
 ### Populate lookup hash tables

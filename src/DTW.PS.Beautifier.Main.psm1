@@ -1127,9 +1127,8 @@ Path to the source PowerShell file
 .PARAMETER DestinationPath
 Path to write reformatted PowerShell.  If not specified rewrites file
 in place.
-.PARAMETER IndentText
-String step to use when indenting.  Default is two spaces, specify tabs
-by passing: "`t"
+.PARAMETER IndentType
+Type of indent to use, 2Spaces, 4 Spaces or Tabs (`t)
 .PARAMETER StandardOutput
 If specified, cleaned script is only written to stdout, not any file, and
 any errors will be written to stderror using concise format (not Write-Error).
@@ -1148,7 +1147,7 @@ Gets content from c:\P\S1.ps1, cleans and writes to c:\P\S1_New.ps1
 Edit-DTWBeautifyScript -SourcePath c:\P\S1.ps1
 Writes cleaned script results back into c:\P\S1.ps1
 .EXAMPLE
-dir c:\CodeFiles -Include *.ps1,*.psm1 -Recurse -IndentText "`t" | Edit-DTWBeautifyScript
+dir c:\CodeFiles -Include *.ps1,*.psm1 -Recurse -IndentType FourSpaces | Edit-DTWBeautifyScript
 For each .ps1 and .psm1 file, cleans and rewrites back into same file using tabs.
 .EXAMPLE
 Edit-DTWBeautifyScript -SourcePath c:\P\S1.ps1 -NewLine CRLF
@@ -1165,7 +1164,8 @@ function Edit-DTWBeautifyScript {
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [string]$DestinationPath,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
-    [string]$IndentText = '  ',
+    [ValidateSet("TwoSpaces","FourSpaces","Tabs")]
+    [string]$IndentType = "TwoSpaces",
     [Alias('StdOut')]
     [switch]$StandardOutput,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
@@ -1206,10 +1206,11 @@ function Edit-DTWBeautifyScript {
     }
     #endregion
 
-    #region Test IndentText and set script-level variable
-    # if user wants tabs for indents but passed '`t' they probably meant "`t" so change for them
-    if ($IndentText -eq '`t') {
-      $IndentText = "`t"
+    #region Test IndentType and set script-level variable
+    switch ($IndentType) {
+      Tabs { $IndentText = "`t" }
+      TwoSpaces { $IndentText = "  " }
+      FourSpaces { $IndentText = "    " }
     }
     # set script level variable
     $script:IndentText = $IndentText
