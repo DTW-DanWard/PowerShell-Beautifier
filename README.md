@@ -28,6 +28,14 @@ The PowerShell Beautifier makes these changes:
 * ensures file ends with a new line.
 
 
+For each release the PowerShell Beautifier is tested on:
+* Windows PowerShell (v5) (native);
+* PowerShell Core - Windows (native);
+* ubuntu16.04, centos7 & opensuse42.1 (Docker containers).
+
+It has also been tested on OSX.
+
+
 ## Table of Contents
 * [Setup](#setup)
 * [Usage](#usage)
@@ -134,6 +142,7 @@ Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -NewLine LF
 * [FAQ](docs/FAQ.md)
 * [How it works](docs/HowItWorks.md)
 * [How to test and add test cases](docs/Testing.md)
+* [How to test across OSes using Docker](test/Automation/README.md)
 * [Help add support for text editors](docs/ExternalEditors.md) like Atom and others
 * [Project roadmap](docs/Roadmap.md) - enhancements, external editors, BOM/encoding functions and more
 * [Change log](docs/ChangeLog.md)
@@ -147,7 +156,7 @@ There are several ways to contribute:
 
 
 ## Credits
-[Dan Ward](http://dtwconsulting.com/) started the PowerShell Beautifier as a pet project back in 2011 but only recently added it to Github.
+Dan Ward created the PowerShell Beautifier as a pet project back in 2011 but only recently added it to Github.  By the way, he's [available for work](http://dtwconsulting.com/); his most recent contract just wrapped up and he's looking for a gig in the DevOps / build / deployment / infrastructure world.
 
 
 ## License

@@ -1,36 +1,3 @@
-# To do:
-
-
-
-# add Dan info to top of both invoke scripts
-# spell check comments
-
-# Go through TechTasks notes for anything else missing
-
-# Add readme.md to Automation folder
-#   Notes about automating container script for own uses
-#   Setting up test script
-
-# download centos7
-# Need to test on Nano Server - and all other except Core
-#  add example in Get-DockerContainerTempFolderPath
-#    help with temp path
-# officially test ubuntu, centos and nano
-# test deleting images and starting from scratch
-
-# last run script through beautifier
-# last review in ISE
-# asdf references - any left?
-
-# Migrate all notes to OneNote
-
-# go through one last time with fine toothed comb
-# Remove $ from variables in function help
-# one last test of all error handling
-#  start with no containers and no images
-
-
-
 <#
 .SYNOPSIS
 Automates PowerShell Core script testing on local Docker containers
@@ -50,6 +17,11 @@ Docker hub. Performs these steps:
 If an error occurs running the test script in one container, all processing ceases
 after that container is stopped; no additional containers are tested as it's likely
 the test script would just fail on those as well.
+
+PowerShell Core Docker container test script written by Dan Ward.
+See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com 
+for more information.  I hope you enjoy using this utility!
+-Dan Ward
 .PARAMETER SourcePaths
 Folders and/or files on local machine to copy to container
 .PARAMETER TestFileAndParams
@@ -100,12 +72,13 @@ Key details here:
 param(
   [string[]]$SourcePaths = @('C:\Code\GitHub\PowerShell-Beautifier'),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
-  [string[]]$TestImageNames = @('ubuntu16.04','centos7'),
+  [string[]]$TestImageNames = @('ubuntu16.04','centos7','opensuse42.1'),
   [string]$DockerHubRepository = 'microsoft/powershell',
   [switch]$Quiet
 )
 #endregion
 
+Set-StrictMode -Version 2
 
 #region Output startup info
 if ($Quiet -eq $false) {
@@ -389,7 +362,7 @@ function Convert-DockerTextToPSObjects {
       $RegEx += "([^`t]+)"
     }
     #endregion
-    $PSObjects = $null
+    [object[]]$PSObjects = $null
     $DockerText | ForEach-Object {
       # break up $DockerText line into individual fields 
       $Match = Select-String -InputObject $_ -Pattern $Regex
@@ -952,7 +925,7 @@ if ($ValidTestImageTagNames -eq $null) {
 
 
 #region Loop through valid local images, create/start container, copy code to it, run test and stop container
-if ($Quiet -eq $false) { Write-Output "Testing on these containers: $ValidTestImageTagNames" }
+if ($Quiet -eq $false) { Write-Output ' '; Write-Output "Testing on these containers: $ValidTestImageTagNames" }
 
 # did all test scripts run successfully? start with $true but Invoke-TestScriptInDockerContainer
 # will set to $false if error

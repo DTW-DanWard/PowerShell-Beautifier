@@ -18,14 +18,14 @@ Here's a tentative roadmap:
 This beautifier utility was originally written years ago in PowerShell v2.  Since PS v3 came out a number of APIs have been added, including support for abstract syntax trees, that can better help with intelligent parsing of the code.
 
 With more intelligent parsing, additional interesting functionality can be added:
+* Automatically [change bracing styles](https://github.com/PoshCode/PowerShellPracticeAndStyle/issues/81)
 * Determine cmdlet for a parameter name to determine full/correct name of parameter (change Get-ChildItem "-Pa" to "-Path") 
-* Move group openings (like "{") to next or previous line based on user preference.
-* Condense short clauses to single line if less than X characters total.  For example, the beautifier could do something like this:
+* Condense short statements to single line if less than X characters total.  For example, the beautifier could do something like this:
 
 ```
 <# before #>
 while (Test-WaitUntilDone) { 
-	Start-Sleep -Seconds 5 
+	Start-Sleep -Seconds 5
 }
 
 <# after #>
