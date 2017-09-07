@@ -95,7 +95,7 @@ Key details here:
 #region Script parameters
 # note: the default values below are specific to my machine and the PowerShell-Beautifier
 # project. I tried to parameterize and genericize this as much as possible so that it could
-# be used by others with (perferably) no code changes. See readme.md in same folder as this
+# be used by others with (preferably) no code changes. See readme.md in same folder as this
 # script for more information about modifying this for your own needs.
 param(
   [string[]]$SourcePaths = @('C:\Code\GitHub\PowerShell-Beautifier'),
@@ -352,7 +352,7 @@ tab-separated fields into PSObjects with note properties - one PSObject per line
 Parameter FieldNames contains the list of field names - with no dot . in the name - to
 break up the content into.
 
-This function should be used in conjuntion with Get-DockerGoTemplate, which creates a 
+This function should be used in conjunction with Get-DockerGoTemplate, which creates a 
 Docker --format parameter value with tabs separating the fields.  You would use the same
 array of field names for both Get-DockerGoTemplate and Convert-DockerTextToPSObjects.
 .PARAMETER FieldNames
@@ -678,7 +678,7 @@ function Get-DockerContainerTempFolderPath {
     # get container info for $ContainerName
     $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
     # this error handling shouldn't be needed; at this point in the script
-    # the container name has been validiated and started, but just in case
+    # the container name has been validated and started, but just in case
     # if no container exists or container not started, exit with error
     if ($ContainerInfo -eq $null) {
       Write-Output "Container $ContainerName not found; exiting script"
