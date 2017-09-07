@@ -259,7 +259,7 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
         NewLine = "CRLF"
       }
       # if $IndentText passed, add that to params
-      if ($IndentText -ne $null ) {
+      if ($IndentText -ne $null) {
         $Params.IndentType = $IndentText
       }
       # finally: take the source file, run through beautifier and output in test folder

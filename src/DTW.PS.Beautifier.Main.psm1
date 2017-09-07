@@ -1164,7 +1164,7 @@ function Edit-DTWBeautifyScript {
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [string]$DestinationPath,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
-    [validateset("TwoSpaces","FourSpaces","Tabs")]
+    [ValidateSet("TwoSpaces","FourSpaces","Tabs")]
     [string]$IndentType = "TwoSpaces",
     [Alias('StdOut')]
     [switch]$StandardOutput,
