@@ -1,10 +1,9 @@
 # To do:
 
-# asdf references - don't delete this yet
 
-# review regions in ISE cause they still don't work in VS Code... :(
+
+# add Dan info to top of both invoke scripts
 # spell check comments
-# run script through beautifier
 
 # Go through TechTasks notes for anything else missing
 
@@ -17,13 +16,16 @@
 #  add example in Get-DockerContainerTempFolderPath
 #    help with temp path
 # officially test ubuntu, centos and nano
+# test deleting images and starting from scratch
 
-# finish through here Wednesday night
+# last run script through beautifier
+# last review in ISE
+# asdf references - any left?
 
 # Migrate all notes to OneNote
 
 # go through one last time with fine toothed comb
-  # Remove $ from variables in function help
+# Remove $ from variables in function help
 # one last test of all error handling
 #  start with no containers and no images
 
@@ -98,26 +100,24 @@ Key details here:
 param(
   [string[]]$SourcePaths = @('C:\Code\GitHub\PowerShell-Beautifier'),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
-  [string[]]$TestImageNames = @('ubuntu16.04', 'centos7'),
+  [string[]]$TestImageNames = @('ubuntu16.04','centos7'),
   [string]$DockerHubRepository = 'microsoft/powershell',
   [switch]$Quiet
 )
 #endregion
 
-# asdf set back to ubuntu and centos above
-
 
 #region Output startup info
 if ($Quiet -eq $false) {
-  Write-Output " "
-  Write-Output "Testing with these values:"
+  Write-Output ' '
+  Write-Output 'Testing with these values:'
   Write-Output "  Test file:        $TestFileAndParams"
   Write-Output "  Docker hub repo:  $DockerHubRepository"
   Write-Output "  Images names:     $TestImageNames"
   if ($SourcePaths.Count -eq 1) {
-  Write-Output "  Source paths:     $SourcePaths"
+    Write-Output "  Source paths:     $SourcePaths"
   } else {
-    Write-Output "  Source paths:"
+    Write-Output '  Source paths:'
     $SourcePaths | ForEach-Object {
       Write-Output "    $_"
     }
@@ -166,9 +166,9 @@ function Out-ErrorInfo {
     if ($ErrorMessage -ne $null -and $ErrorMessage.Trim() -ne '') {
       Write-Output $ErrorMessage
     }
-    Write-Output "Error occurred running this command:"
+    Write-Output 'Error occurred running this command:'
     Write-Output "  $Command $Parameters"
-    Write-Output "Error info:"
+    Write-Output 'Error info:'
     $ErrorInfo | ForEach-Object { Write-Output $_.ToString() }
   }
 }
@@ -272,24 +272,23 @@ function Confirm-ValidateUserImageNames {
           # ourselves programmatically.  however, pulling down that much data (WindowsServerCore is 5GB!) is
           # really something the user should initiate.
           #endregion
-          Write-Output " "
+          Write-Output ' '
           Write-Output "Image $TestImageTagName is not installed locally but exists in repository $DockerHubRepository"
-          Write-Output "To download and install type:"
-          Write-Output ("  docker pull " + $DockerHubRepository + ":" + $TestImageTagName)
-          Write-Output " "
+          Write-Output 'To download and install type:'
+          Write-Output ('  docker pull ' + $DockerHubRepository + ':' + $TestImageTagName)
+          Write-Output ' '
         }
         else {
-          Write-Output " "
+          Write-Output ' '
           Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
-          Write-Output "Do you have an incorrect image name?  Valid image names are:"
+          Write-Output 'Do you have an incorrect image name?  Valid image names are:'
           $DockerHubRepositoryImageNames | Sort-Object | ForEach-Object {
             Write-Output "  $_"
           }
-          Write-Output " "
+          Write-Output ' '
         }
       }
     }
-    
   }
 }
 #endregion
@@ -310,8 +309,8 @@ function Confirm-DockerHubRepositoryFormatCorrect {
     # i.e. it should have only 1 slash in it between other characters
     if ($DockerHubRepository -notmatch '^[^/]+/[^/]+$') {
       Write-Output "The format for DockerHubRepository is incorrect: $DockerHubRepository"
-      Write-Output "It should be in the format: TeamName/ProjectName"
-      Write-Output "That is: only 1 forward slash surrounded by other non-forward-slash text"
+      Write-Output 'It should be in the format: TeamName/ProjectName'
+      Write-Output 'That is: only 1 forward slash surrounded by other non-forward-slash text'
       exit
     }
   }
@@ -384,7 +383,7 @@ function Convert-DockerTextToPSObjects {
     #region Get regex for parsing a string from Docker text
     # Docker string will be field values separated by tabs so need a regex like this:
     #   ([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)
-    [string]$RegEx = ""
+    [string]$RegEx = ''
     for ($i = 1; $i -le $FieldNames.Count; $i++) {
       if ($RegEx.Length -gt 0) { $RegEx += "`t" }
       $RegEx += "([^`t]+)"
@@ -405,7 +404,7 @@ function Convert-DockerTextToPSObjects {
     $PSObjects
   }
 }
-#>
+#endregion
 
 
 #region Function: Convert-ImageDataToHashTables
@@ -441,12 +440,12 @@ function Convert-ImageDataToHashTables {
       $OneImageData = [ordered]@{}
       # get PSObject for this tag
       $TagObject = $ImageDataPSObjects | Where-Object { $_.name -eq $Name }
-      
+
       # for each property on the PSObject, add to hashtable
       ($TagObject | Get-Member -MemberType NoteProperty).Name | Sort-Object | ForEach-Object {
         $OneImageData.$_ = $TagObject.$_
       }
-    
+
       #region Container name information
       # when creating and using containers we want to use a specific container name; if you
       # don't specify a name, docker will create the container with a random value. it's a lot
@@ -459,8 +458,8 @@ function Convert-ImageDataToHashTables {
       #   [a-zA-Z0-9][a-zA-Z0-9_.-]
       #endregion
       # replace any invalid characters with underscores to get sanitized/safe name
-      $OneImageData.ContainerName = ($DockerHubRepository + '_' + $Name ) -replace '[^a-z0-9_.-]', '_'
-      
+      $OneImageData.ContainerName = ($DockerHubRepository + '_' + $Name) -replace '[^a-z0-9_.-]','_'
+
       # now add this image/tag's hashtable data to the main $ImageDataHashTable hashtable
       $ImageDataHashTable.$Name = $OneImageData
     }
@@ -512,6 +511,7 @@ function Get-DockerGoTemplate {
 }
 #endregion
 
+
 #region Function: Get-DockerHubProjectImageInfo
 <#
 .SYNOPSIS
@@ -522,13 +522,13 @@ Returns Docker hub project image/tag info for $DockerHubRepository; format is PS
 function Get-DockerHubProjectImageInfo {
   process {
     # path to tags for Docker project
-    $ImageTagsUri = "https://hub.docker.com/v2/repositories/" + $DockerHubRepository + "/tags"
+    $ImageTagsUri = 'https://hub.docker.com/v2/repositories/' + $DockerHubRepository + '/tags'
     try {
       $Response = Invoke-WebRequest -Uri $ImageTagsUri
       # Convert JSON response to PSObjects and return
       (ConvertFrom-Json -InputObject $Response.Content).results
     } catch {
-      Write-Output "Error occurred calling Docker hub project tags url"
+      Write-Output 'Error occurred calling Docker hub project tags url'
       Write-Output "  Url:   $ImageTagsUri"
       Write-Output "  Error: $($_.Exception.Message)"
       exit
@@ -551,9 +551,9 @@ does nothing.  If not installed, reports error and exits script.
 #>
 function Confirm-DockerInstalled {
   process {
-    $Cmd = "docker"
-    $Params = @("--version")
-    $ErrorMessage = "Docker does not appear to be installed or is not working correctly."
+    $Cmd = 'docker'
+    $Params = @('--version')
+    $ErrorMessage = 'Docker does not appear to be installed or is not working correctly.'
     # capture Results output and discard; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ErrorMessage $ErrorMessage -ExitOnError
@@ -587,8 +587,7 @@ function Copy-FilesToDockerContainer {
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
     [string]$ContainerPath
-
-    )
+  )
   #endregion
   process {
     if ($Quiet -eq $false) { Write-Output "  Copying source content to container temp folder $ContainerPath" }
@@ -596,8 +595,8 @@ function Copy-FilesToDockerContainer {
     $SourcePaths | ForEach-Object {
       $SourcePath = $_
       if ($Quiet -eq $false) { Write-Output "    $SourcePath" }
-      $Cmd = "docker"
-      $Params = @("cp", $SourcePath, ($ContainerName + ":" + $ContainerPath))
+      $Cmd = 'docker'
+      $Params = @('cp',$SourcePath,($ContainerName + ':' + $ContainerPath))
       # capture output and discard; don't exit on error
       $Results = $null
       Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
@@ -638,9 +637,9 @@ function Initialize-DockerContainerAndStart {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output "  Preexisting container not found; creating and starting" }
-    $Cmd = "docker"
-    $Params = @("run", "--name", $ContainerName, "-t", "-d", ($DockerHubRepository + ":" + $ImageName))
+    if ($Quiet -eq $false) { Write-Output '  Preexisting container not found; creating and starting' }
+    $Cmd = 'docker'
+    $Params = @('run','--name',$ContainerName,'-t','-d',($DockerHubRepository + ':' + $ImageName))
     # capture output and discard; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
@@ -675,7 +674,7 @@ function Get-DockerContainerTempFolderPath {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output "  Getting temp folder path in container" }
+    if ($Quiet -eq $false) { Write-Output '  Getting temp folder path in container' }
     # get container info for $ContainerName
     $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
     # this error handling shouldn't be needed; at this point in the script
@@ -684,13 +683,13 @@ function Get-DockerContainerTempFolderPath {
     if ($ContainerInfo -eq $null) {
       Write-Output "Container $ContainerName not found; exiting script"
       exit
-    } elseif (! $ContainerInfo.Status.StartsWith("Up")) {
+    } elseif (!$ContainerInfo.Status.StartsWith('Up')) {
       Write-Output "Container $ContainerName isn't running but it should be; exiting script"
       exit
     }
-    $Cmd = "docker"
+    $Cmd = 'docker'
     [scriptblock]$ScriptInContainerToGetTempPath = [scriptblock]::Create('[System.IO.Path]::GetTempPath()')
-    $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToGetTempPath)
+    $Params = @('exec',$ContainerName,'powershell','-Command',$ScriptInContainerToGetTempPath)
     # capture output and return; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
@@ -718,8 +717,8 @@ Id           Names       Image                            Status
 function Get-DockerContainerStatus {
   process {
     [string[]]$DockerGoFormatFields = @('ID','Names','Image','Status')
-    $Cmd = "docker"
-    $Params = @("ps", "-a", "--format", (Get-DockerGoTemplate -FieldNames $DockerGoFormatFields))
+    $Cmd = 'docker'
+    $Params = @('ps','-a','--format',(Get-DockerGoTemplate -FieldNames $DockerGoFormatFields))
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # now parse results to get individual properties, if no data return $null
@@ -751,8 +750,8 @@ microsoft/powershell ubuntu16.04 1c33de461473 365MB  2 months ago
 function Get-DockerImageStatus {
   process {
     [string[]]$DockerGoFormatFields = @('Repository','Tag','ID','Size','CreatedSince')
-    $Cmd = "docker"
-    $Params = @("images", $DockerHubRepository, "--format", (Get-DockerGoTemplate -FieldNames $DockerGoFormatFields))
+    $Cmd = 'docker'
+    $Params = @('images',$DockerHubRepository,'--format',(Get-DockerGoTemplate -FieldNames $DockerGoFormatFields))
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # now parse results to get individual properties, if no data return $null
@@ -799,7 +798,7 @@ function Invoke-TestScriptInDockerContainer {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output "  Running test script on container" }
+    if ($Quiet -eq $false) { Write-Output '  Running test script on container' }
     #region A handy tip
     # if you are reading this script, this next bit contains the biggest gotcha I encountered when
     # writing the docker commands to run in PowerShell. if you were to type a docker execute command in a
@@ -809,9 +808,9 @@ function Invoke-TestScriptInDockerContainer {
     # operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 " as a scriptblock 
     # first; if you try passing it in as a string it will not execute no matter how you format it.
     #endregion
-    $Cmd = "docker"
+    $Cmd = 'docker'
     [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptPath)
-    $Params = @("exec", $ContainerName, "powershell", "-Command", $ScriptInContainerToRunTest)
+    $Params = @('exec',$ContainerName,'powershell','-Command',$ScriptInContainerToRunTest)
 
     # capture output $Results; don't exit on error
     $Results = $null
@@ -824,7 +823,7 @@ function Invoke-TestScriptInDockerContainer {
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
     } else {
       $TestScriptSuccess.Value = $true
-      if ($Quiet -eq $false) { Write-Output "  Test script completed successfully" }
+      if ($Quiet -eq $false) { Write-Output '  Test script completed successfully' }
     }
   }
 }
@@ -853,9 +852,9 @@ function Start-DockerContainer {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output "  Starting container" }
-    $Cmd = "docker"
-    $Params = @("start", $ContainerName)
+    if ($Quiet -eq $false) { Write-Output '  Starting container' }
+    $Cmd = 'docker'
+    $Params = @('start',$ContainerName)
     # capture output and discard; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
@@ -886,9 +885,9 @@ function Stop-DockerContainer {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output "  Stopping container" }
-    $Cmd = "docker"
-    $Params = @("stop", $ContainerName)
+    if ($Quiet -eq $false) { Write-Output '  Stopping container' }
+    $Cmd = 'docker'
+    $Params = @('stop',$ContainerName)
     # capture output and discard; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
@@ -901,13 +900,11 @@ function Stop-DockerContainer {
 # ################ 'main' begins here
 
 
-
-
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
 # There are some exceptions: if an error occurs in Copy-FilesToDockerContainer or 
 # Invoke-TestScriptInDockerContainer, the script does not exit so processing can continue
-# and the container will be stopped.
+# and the container will be stopped (and then the script will exit).
 
 
 # make sure Docker is installed, 'docker' is in the path and is working
@@ -932,7 +929,7 @@ Confirm-SourcePathsValid
 
 #region If user didn't specify any values for TestImageNames, display valid values and exit
 if ($TestImageNames.Count -eq 0) {
-  Write-Output "No image/tag name specified for TestImageTagName; please use a value below:"
+  Write-Output 'No image/tag name specified for TestImageTagName; please use a value below:'
   $HubImageDataHashTable.Keys | Sort-Object | ForEach-Object {
     Write-Output "  $_"
   }
@@ -947,11 +944,12 @@ if ($TestImageNames.Count -eq 0) {
 Confirm-ValidateUserImageNames -DockerHubRepositoryImageNames ($HubImageDataHashTable.Keys) -ValidImageNames ([ref]$ValidTestImageTagNames)
 # check if no valid image names - exit
 if ($ValidTestImageTagNames -eq $null) {
-  Write-Output "No locally installed images to test against; exiting."
+  Write-Output 'No locally installed images to test against; exiting.'
   exit
 }
 #endregion
 #endregion
+
 
 #region Loop through valid local images, create/start container, copy code to it, run test and stop container
 if ($Quiet -eq $false) { Write-Output "Testing on these containers: $ValidTestImageTagNames" }
@@ -962,7 +960,7 @@ if ($Quiet -eq $false) { Write-Output "Testing on these containers: $ValidTestIm
 
 $ValidTestImageTagNames | ForEach-Object {
   $ValidTestImageTagName = $_
-  if ($Quiet -eq $false) { Write-Output " "; Write-Output $ValidTestImageTagName }
+  if ($Quiet -eq $false) { Write-Output ' '; Write-Output $ValidTestImageTagName }
 
   # get sanitized container name (based on repository + image name) for this image
   $ContainerName = ($HubImageDataHashTable[$ValidTestImageTagName]).ContainerName
@@ -974,10 +972,10 @@ $ValidTestImageTagNames | ForEach-Object {
     Initialize-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
   }
   else {
-    if ($Quiet -eq $false) { Write-Output "  Preexisting container found" }
+    if ($Quiet -eq $false) { Write-Output '  Preexisting container found' }
     # if container not started, start it
-    if ($ContainerInfo.Status.StartsWith("Up")) {
-      if ($Quiet -eq $false) { Write-Output "  Container already started" }
+    if ($ContainerInfo.Status.StartsWith('Up')) {
+      if ($Quiet -eq $false) { Write-Output '  Container already started' }
     }
     else {
       # start local container
@@ -1010,6 +1008,7 @@ $ValidTestImageTagNames | ForEach-Object {
   }
 }
 #endregion
+
 
 #region If -Quiet and no errors occurred, return $true
 # if not -Quiet, don't return any value BUT if -Quiet and everything 
