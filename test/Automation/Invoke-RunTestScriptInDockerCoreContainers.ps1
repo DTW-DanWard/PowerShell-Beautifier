@@ -28,7 +28,7 @@ Folders and/or files on local machine to copy to container
 Path to the test script with any params to run test; path is relative to SourcePaths;
 see example for more details 
 .PARAMETER TestImageNames
-Docker image names to test against. Default values: "ubuntu16.04", "centos7"
+Docker image names to test against. Default values: 'ubuntu16.04', 'centos7', 'opensuse42.1'
 .PARAMETER DockerHubRepository
 Docker hub repository team/project name. Default value: "microsoft/powershell"
 .PARAMETER Quiet
@@ -69,8 +69,8 @@ Key details here:
 #region Script parameters
 # note: the default values below are specific to my machine and the PowerShell-Beautifier
 # project. I tried to parameterize and genericize this as much as possible so that it could
-# be used by others with (preferably) no code changes. See readme.md in same folder as this
-# script for more information about modifying this for your own needs.
+# be used by others with *preferably* no code changes. See readme.md in same folder as this
+# script for more information about running this script.
 param(
   [string[]]$SourcePaths = @('C:\Code\GitHub\PowerShell-Beautifier'),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
@@ -200,48 +200,62 @@ function Invoke-RunCommand {
 #endregion
 
 
-#region Function: Confirm-ValidateUserImageNames
+#region Function: Confirm-ValidateUserImages
 <#
 .SYNOPSIS
-Validates script param TestImageNames entries
+Validates script param TestImageNames entries: names, local availability, OS
 .DESCRIPTION
-Validates script parameter TestImageNames entries by comparing against locally
-installed images for repository DockerHubRepository with same name supplied
-by user.  If image is found locally it is added to reference parameter ValidImageNames.
-If not found locally but is valid for repository DockerHubRepository (i.e. from
-the hub data, image names passed in via DockerHubRepositoryImageNames), outputs
-command for user to run to download image.  If image is not found locally nor
-is found at repository $DockerHubRepository, writes error info but does not
-exit script.
-.PARAMETER DockerHubRepositoryImageNames
-Listing of valid image names direct from the Docker hub repository itself
+Validates script parameter TestImageNames entries
+ - checks name with locally installed images for repository DockerHubRepository
+   - if found locally, also checks OS type for image matches current Docker server OS
+ - if not found locally but is valid for repository DockerHubRepository (i.e. from
+   the online hub data) outputs command for user to run to download image.
+If image is not found locally nor found at repository DockerHubRepository, writes
+error info but does not exit script (it will process any valid image names).
+.PARAMETER DockerHubRepositoryImageData
+Hashtable of valid image data from the Docker hub repository itself
 .PARAMETER ValidImageNames
 Reference parameter! Any/all valid image names found in list TestImageNames are
 returned in this parameter
 #>
-function Confirm-ValidateUserImageNames {
+function Confirm-ValidateUserImages {
   #region Function parameters
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string[]]$DockerHubRepositoryImageNames,
+    $DockerHubRepositoryImageData,
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
     [ref]$ValidImageNames
   )
   #endregion
   process {
-    # get local images for docker project $DockerHubRepository
+    # get local images for Docker project $DockerHubRepository
     $LocalDockerRepositoryImages = Get-DockerImageStatus
+
+    # get local Docker server OS
+    [string]$DockerServerOS = Get-DockerServerOS
 
     $TestImageNames | ForEach-Object {
       $TestImageTagName = $_
       if ($LocalDockerRepositoryImages.Tag -contains $TestImageTagName) {
-        $ValidImageNames.value += $TestImageTagName
+        # make sure image OS is valid for current Docker server OS
+        [string]$ImageOS = $DockerHubRepositoryImageData.$TestImageTagName.images.os
+        if ($ImageOS -ne $DockerServerOS) {
+          Write-Output ' '
+          Write-Output "Image $TestImageTagName cannot be tested at this time as the image OS type is $ImageOS"
+          Write-Output "while your local Docker server OS is $DockerServerOS.  You need to change your Docker"
+          Write-Output 'server OS type; on Windows this can be done by right-clicking the Docker system'
+          Write-Output "tray icon and selecting 'Change to $ImageOS containers'"
+          Write-Output 'Note: if you do this there could be additional setup work if this is the first'
+          Write-Output "time you are attempting to run $ImageOS containers on this machine."
+        } else {
+          $ValidImageNames.value += $TestImageTagName
+        }
       }
       else {
-        if ($DockerHubRepositoryImageNames -contains $TestImageTagName) {
+        if ($DockerHubRepositoryImageData.Keys -contains $TestImageTagName) {
           #region Programming note
           # if the image name is valid but not installed locally we *could* just run the 'docker pull' command
           # ourselves programmatically.  however, pulling down that much data (WindowsServerCore is 5GB!) is
@@ -257,7 +271,7 @@ function Confirm-ValidateUserImageNames {
           Write-Output ' '
           Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
           Write-Output 'Do you have an incorrect image name?  Valid image names are:'
-          $DockerHubRepositoryImageNames | Sort-Object | ForEach-Object {
+          $DockerHubRepositoryImageData.Keys | Sort-Object | ForEach-Object {
             Write-Output "  $_"
           }
           Write-Output ' '
@@ -356,13 +370,13 @@ function Convert-ImageDataToHashTables {
 
       #region Container name information
       # when creating and using containers we want to use a specific container name; if you
-      # don't specify a name, docker will create the container with a random value. it's a lot
+      # don't specify a name, Docker will create the container with a random value. it's a lot
       # easier to find/start/use/stop a container with a distinct name you know in advance. 
-      # so we'll base the name on the docker standard RepositoryName:ImageName; unfortunately 
-      # docker's container name only allows certain characters (no slashes or colons) so we'll
+      # so we'll base the name on the Docker standard RepositoryName:ImageName; unfortunately 
+      # Docker's container name only allows certain characters (no slashes or colons) so we'll
       # add a sanitized ContainerName property to the image data in $ImageDataHashTable and use
       # that later in our code.
-      # per docker error message only these characters are valid for the --name parameter:
+      # per Docker error message only these characters are valid for the --name parameter:
       #   [a-zA-Z0-9][a-zA-Z0-9_.-]
       #endregion
       # replace any invalid characters with underscores to get sanitized/safe name
@@ -410,9 +424,9 @@ function Get-DockerHubProjectImageInfo {
 #region Function: Confirm-DockerInstalled
 <#
 .SYNOPSIS
-Confirms docker is installed
+Confirms Docker is installed
 .DESCRIPTION
-Confirms docker is installed; if installed ('docker --version' works) then function
+Confirms Docker is installed; if installed ('docker --version' works) then function
 does nothing.  If not installed, reports error and exits script.
 #>
 function Confirm-DockerInstalled {
@@ -457,7 +471,7 @@ function Copy-FilesToDockerContainer {
   #endregion
   process {
     if ($Quiet -eq $false) { Write-Output "  Copying source content to container temp folder $ContainerPath" }
-    # for each source file path, copy to docker container
+    # for each source file path, copy to Docker container
     $SourcePaths | ForEach-Object {
       $SourcePath = $_
       if ($Quiet -eq $false) { Write-Output "    $SourcePath" }
@@ -477,12 +491,12 @@ function Copy-FilesToDockerContainer {
 .SYNOPSIS
 Creates local container and starts it
 .DESCRIPTION
-Creates local container and starts it using docker run (as opposed to explicit
+Creates local container and starts it using Docker run (as opposed to explicit
 docker create and start commands). Uses image $ImageName from repository 
 $DockerHubRepository and creates with name $ContainerName.
 If error occurs, reports error and exits script.
 .PARAMETER ImageName
-Name of docker image to use to create container.
+Name of Docker image to use to create container.
 .PARAMETER ContainerName
 Name of container to create.
 .EXAMPLE
@@ -568,9 +582,9 @@ function Get-DockerContainerTempFolderPath {
 #region Function: Get-DockerContainerStatus
 <#
 .SYNOPSIS
-Returns all local docker container info as PSObjects
+Returns all local Docker container info as PSObjects
 .DESCRIPTION
-Returns all local docker container info as PSObjects. If error occurs, 
+Returns all local Docker container info as PSObjects. If error occurs,
 reports error and exits script.
 .EXAMPLE
 Get-DockerContainerStatus | Format-Table
@@ -597,11 +611,10 @@ function Get-DockerContainerStatus {
 #region Function: Get-DockerImageStatus
 <#
 .SYNOPSIS
-Returns local docker image info as PSObjects for repository $DockerHubRepository
+Returns local Docker image info as PSObjects for repository $DockerHubRepository
 .DESCRIPTION
-Returns local docker image info (images -a) as PSObjects with these properties:
-ContainerId, Name, Image, Status
-If error occurs, reports error and exits script.
+Returns local Docker image info (images -a) as PSObjects. If error occurs,
+reports error and exits script.
 .EXAMPLE
 Get-DockerImageStatus | Format-Table
 # Additional content to right not shown
@@ -620,6 +633,30 @@ function Get-DockerImageStatus {
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
     $Results | ConvertFrom-Json
+  }
+}
+#endregion
+
+
+#region Function: Get-DockerServerOS
+<#
+.SYNOPSIS
+Returns local Docker server operating system: linux or windows
+.DESCRIPTION
+Returns local Docker server operating system: linux or windows. If error occurs,
+reports error and exits script.
+.EXAMPLE
+Get-DockerServerOS
+linux
+#>
+function Get-DockerServerOS {
+  process {
+    $Cmd = 'docker'
+    $Params = @('info','--format', '{{json .}}')
+    $Results = $null
+    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    # parse results, converting from JSON to PSObject, then return OSType property
+    ($Results | ConvertFrom-Json).OSType
   }
 }
 #endregion
@@ -661,7 +698,7 @@ function Invoke-TestScriptInDockerContainer {
     if ($Quiet -eq $false) { Write-Output '  Running test script on container' }
     #region A handy tip
     # if you are reading this script, this next bit contains the biggest gotcha I encountered when
-    # writing the docker commands to run in PowerShell. if you were to type a docker execute command in a
+    # writing the Docker commands to run in PowerShell. if you were to type a Docker execute command in a
     # PowerShell window to execute a different PowerShell script in the container, it would look like this:
     #   docker exec containername powershell -Command { /SomeScript.ps1 }
     # the gotcha is that, when converting this to a command with array of parameters to pass to the call
@@ -801,7 +838,7 @@ if ($TestImageNames.Count -eq 0) {
 # listing of valid, locally installed image names
 [string[]]$ValidTestImageTagNames = $null
 # check user supplied images names, if valid will be stored in ValidTestImageTagNames 
-Confirm-ValidateUserImageNames -DockerHubRepositoryImageNames ($HubImageDataHashTable.Keys) -ValidImageNames ([ref]$ValidTestImageTagNames)
+Confirm-ValidateUserImages -DockerHubRepositoryImageData $HubImageDataHashTable -ValidImageNames ([ref]$ValidTestImageTagNames)
 # check if no valid image names - exit
 if ($ValidTestImageTagNames -eq $null) {
   Write-Output 'No locally installed images to test against; exiting.'
@@ -828,7 +865,7 @@ $ValidTestImageTagNames | ForEach-Object {
   $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
   # if no container exists, create one and start it
   if ($ContainerInfo -eq $null) {
-    # create docker container and start it
+    # create Docker container and start it
     Initialize-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
   }
   else {
