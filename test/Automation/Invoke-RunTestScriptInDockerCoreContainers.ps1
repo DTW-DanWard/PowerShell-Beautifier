@@ -97,6 +97,7 @@ if ($Quiet -eq $false) {
       Write-Output "    $_"
     }
   }
+  Write-Output ' '
 }
 #endregion
 
@@ -181,18 +182,22 @@ function Invoke-RunCommand {
     [ValidateNotNullOrEmpty()]
     [ref]$Results,
     [string]$ErrorMessage,
-    [switch]$ExitOnError
+    [switch]$ExitOnError,
+    [ref]$ErrorOccurred
   )
   #endregion
   process {
     try {
+      if ($ErrorOccurred -ne $null) { $ErrorOccurred.Value = $false }
       $Results.value = & $Command $Parameters 2>&1
       if ($? -eq $false -or $LastExitCode -ne 0) {
         Out-ErrorInfo -Command $Command -Parameters $Parameters -ErrorInfo $Results.value -ErrorMessage $ErrorMessage
+        if ($ErrorOccurred -ne $null) { $ErrorOccurred.Value = $true }
         if ($ExitOnError -eq $true) { exit }
       }
     } catch {
       Out-ErrorInfo -Command $Command -Parameters $Parameters -ErrorInfo $_.Exception.Message -ErrorMessage $ErrorMessage
+      if ($ErrorOccurred -ne $null) { $ErrorOccurred.Value = $true }
       if ($ExitOnError -eq $true) { exit }
     }
   }
@@ -466,7 +471,10 @@ function Copy-FilesToDockerContainer {
     [string]$ContainerName,
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$ContainerPath
+    [string]$ContainerPath,
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [ref]$ErrorOccurred
   )
   #endregion
   process {
@@ -477,9 +485,11 @@ function Copy-FilesToDockerContainer {
       if ($Quiet -eq $false) { Write-Output "    $SourcePath" }
       $Cmd = 'docker'
       $Params = @('cp',$SourcePath,($ContainerName + ':' + $ContainerPath))
-      # capture output and discard; don't exit on error
+      # capture output, discard Results but return ErrorOccurred; don't exit on error
       $Results = $null
-      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
+      $Error = $false
+      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ErrorOccurred ([ref]$Error)
+      $ErrorOccurred.Value = $Error
     }
   }
 }
@@ -799,9 +809,12 @@ function Stop-DockerContainer {
 
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
-# There are some exceptions: if an error occurs in Copy-FilesToDockerContainer or 
-# Invoke-TestScriptInDockerContainer, the script does not exit so processing can continue
-# and the container will be stopped (and then the script will exit).
+# There are some exceptions: 
+#   if an error occurs in Copy-FilesToDockerContainer, ErrorOccurred is set to $true and
+#     thus Invoke-TestScriptInDockerContainer will not be run (we can't execute the test
+#     if code didn't copy correctly)
+#   Invoke-TestScriptInDockerContainer does not exit the script, either, so processing
+#   can continue and the container will be stopped (and *then* the script will exit).
 
 
 # make sure Docker is installed, 'docker' is in the path and is working
@@ -849,7 +862,7 @@ if ($ValidTestImageTagNames -eq $null) {
 
 
 #region Loop through valid local images, create/start container, copy code to it, run test and stop container
-if ($Quiet -eq $false) { Write-Output ' '; Write-Output "Testing on these containers: $ValidTestImageTagNames" }
+if ($Quiet -eq $false) { Write-Output "Testing on these containers: $ValidTestImageTagNames" }
 
 # did all test scripts run successfully? start with $true but Invoke-TestScriptInDockerContainer
 # will set to $false if error
@@ -885,14 +898,18 @@ $ValidTestImageTagNames | ForEach-Object {
   Get-DockerContainerTempFolderPath -ContainerName $ContainerName ([ref]$ContainerTestFolderPath)
 
   # copy items in script param $SourcePaths to container $ContainerName to location
-  # under folder $ContainerTestFolderPath
-  # does not exit if error so container can be stopped
-  Copy-FilesToDockerContainer -ContainerName $ContainerName -ContainerPath $ContainerTestFolderPath
+  # under folder $ContainerTestFolderPath; if error occurred, return $true
+  # value in $ErrorOccurred but do not exit in Copy-FilesToDockerContainer
+  [bool]$ErrorOccurred = $false
+  Copy-FilesToDockerContainer -ContainerName $ContainerName -ContainerPath $ContainerTestFolderPath -ErrorOccurred ([ref]$ErrorOccurred)
 
-  # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams  
-  # if error does not exit so container can be stopped after
-  $ContainerScriptPath = Join-Path -Path $ContainerTestFolderPath -ChildPath $TestFileAndParams
-  Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath -TestScriptSuccess ([ref]$TestScriptSuccess)
+  # only run test if no error occurred during copying
+  if ($ErrorOccurred -eq $false) {
+    # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams  
+    # if error, do not exit so container can be stopped next step
+    $ContainerScriptPath = Join-Path -Path $ContainerTestFolderPath -ChildPath $TestFileAndParams
+    Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath -TestScriptSuccess ([ref]$TestScriptSuccess)
+  }
 
   # stop local container
   Stop-DockerContainer -ContainerName $ContainerName
