@@ -41,13 +41,15 @@ be output and $true will not be returned.
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
   -SourcePaths 'C:\Code\GitHub\PowerShell-Beautifier' `
   -TestFileAndParams 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet'
-  -TestImageNames ('ubuntu16.04','centos7','nanoserver')
+  -TestImageNames ('ubuntu16.04','centos7')
 
 Key details here: 
  - C:\Code\GitHub\PowerShell-Beautifier is a folder that gets copied to each container.
  - The test script is located under that folder, so including that source folder name,
-     the path is: PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1
- - -Quiet is a parameter of Invoke-DTWBeautifyScriptTests.ps1
+   the path is: PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1
+ - -Quiet is a parameter of Invoke-DTWBeautifyScriptTests.ps1; when specified if no
+   errors occur (knock on wood) only $true is returned. This script looks for $true
+   to know the test on the current container was successful.
 
 .EXAMPLE
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
@@ -56,9 +58,9 @@ Key details here:
 
 Key details here:
  - TestFile.ps1 is the test file to run here.
- - We are explicitly copying over that file, so it will be located in the root of 
-   the temp folder in the container.  For that reason, there is no relative path
-   to that script in the TestFileAndParams value.
+ - We are explicitly copying over TestFile.ps1, not a parent folder, so the script will
+   be located in the root of the temp folder in the container.  For that reason, there 
+   is no relative path to that script in the TestFileAndParams value.
  - That script could be anywhere, doesn't have to be in the root of c:\Code, so the
    SourcePath value could be c:\Code\TestScripts\Latest\TestFile.ps1 but the 
    TestFileAndParams value would be the same.
@@ -313,73 +315,6 @@ function Confirm-SourcePathsValid {
 #endregion
 
 
-#region Function: Convert-DockerTextToPSObjects
-<#
-.SYNOPSIS
-Converts tab-separated Docker command output text into PSObjects
-.DESCRIPTION
-Docker commands - like all non-PowerShell commands - return output as a string per line.
-In order to be able to better use this output in PowerShell, it's best to convert this
-output to PSObjects, one object per line.  This function converts output that contains
-tab-separated fields into PSObjects with note properties - one PSObject per line.
-Parameter FieldNames contains the list of field names - with no dot . in the name - to
-break up the content into.
-
-This function should be used in conjunction with Get-DockerGoTemplate, which creates a 
-Docker --format parameter value with tabs separating the fields.  You would use the same
-array of field names for both Get-DockerGoTemplate and Convert-DockerTextToPSObjects.
-.PARAMETER FieldNames
-List of field names to build into template
-.PARAMETER DockerText
-Tab separated Docker text to parse
-.EXAMPLE
-Convert-DockerTextToPSObjects -FieldNames ("ID","Names","Image") -DockerText "b6e44fd9f3a7    MyContainer    MyImage"
-ID           Names       Image
---           -----       -----
-b6e44fd9f3a7 MyContainer MyImage
-
-# note: returned PSObject with those values as note properties
-#>
-function Convert-DockerTextToPSObjects {
-  #region Function parameters
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [string[]]$FieldNames,
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [string[]]$DockerText
-  )
-  #endregion
-  process {
-    #region Get regex for parsing a string from Docker text
-    # Docker string will be field values separated by tabs so need a regex like this:
-    #   ([^`t]+)`t([^`t]+)`t([^`t]+)`t([^`t]+)
-    [string]$RegEx = ''
-    for ($i = 1; $i -le $FieldNames.Count; $i++) {
-      if ($RegEx.Length -gt 0) { $RegEx += "`t" }
-      $RegEx += "([^`t]+)"
-    }
-    #endregion
-    [object[]]$PSObjects = $null
-    $DockerText | ForEach-Object {
-      # break up $DockerText line into individual fields 
-      $Match = Select-String -InputObject $_ -Pattern $Regex
-      # create empty object PSObject to store data
-      $PSObject = New-Object PSObject
-      # now add property for each GoField
-      for ($i = 0; $i -lt $FieldNames.Count; $i++) {
-        $PSObject = Add-Member -InputObject $PSObject -NotePropertyName $FieldNames[$i] -NotePropertyValue ($Match.Matches.Groups[($i + 1)].Value) -PassThru
-      }
-      $PSObjects += $PSObject
-    }
-    $PSObjects
-  }
-}
-#endregion
-
-
 #region Function: Convert-ImageDataToHashTables
 <#
 .SYNOPSIS
@@ -438,48 +373,6 @@ function Convert-ImageDataToHashTables {
     }
     #return data
     $ImageDataHashTable
-  }
-}
-#endregion
-
-
-#region Function: Get-DockerGoTemplate
-<#
-.SYNOPSIS
-Creates a tab-separated Docker --format parameter for a list of fields
-.DESCRIPTION
-Creates a string, to be used as a Docker --format parameter value, from a list of field
-names.  The fields will be tab-separated to allow for easier parsing into PSObjects.
-
-**NOTE: the field names should NOT include the dot . in the name; that will be added by
-this function. We don't want to include the . in the actual PSObject property name
-so this function will add it now rather than remove it later when we construct the PSObject.
-.PARAMETER FieldNames
-List of field names to build into template
-.EXAMPLE
-Get-DockerGoTemplate -FieldNames ("ID","Names","Image","Status")
-{{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}
-# note: dot . prefix added to each field name
-#>
-function Get-DockerGoTemplate {
-  #region Function parameters
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [string[]]$FieldNames
-  )
-  #endregion
-  process {
-    [string]$Template = ""
-    # for each field, add to template with field surrounded in {{ }} and
-    # separated by `t tabs, for example: 
-    #   {{.ID}}`t{{.Names}}`t{{.Image}}`t{{.Status}}
-    $FieldNames | ForEach-Object {
-      if ($Template.Length -gt 0) { $Template += "`t" }
-      $Template += '{{.' + $_ + '}}'
-    }
-    $Template
   }
 }
 #endregion
@@ -677,29 +570,25 @@ function Get-DockerContainerTempFolderPath {
 .SYNOPSIS
 Returns all local docker container info as PSObjects
 .DESCRIPTION
-Returns all local docker container info as PSObjects with these properties:
-ContainerId, Name, Image, Status
-If error occurs, reports error and exits script.
+Returns all local docker container info as PSObjects. If error occurs, 
+reports error and exits script.
 .EXAMPLE
-Get-DockerContainerStatus
-Id           Names       Image                            Status
---           -----       -----                            ------
-1c0fc1715cd8 ubuntu16.04 microsoft/powershell:ubuntu16.04 Exited (0) 17 minutes ago
-422b3e0d337a test6       microsoft/powershell:ubuntu16.04 Exited (0) 5 days ago
+Get-DockerContainerStatus | Format-Table
+# Additional content to right not shown
+Command      CreatedAt                     ID           Image                             .......
+-------      ---------                     --           -----                             .......
+"powershell" 2017-09-07 12:54:26 -0400 EDT cbd1e9ea22d9 microsoft/powershell:opensuse42.1 .......
+"powershell" 2017-09-07 12:50:43 -0400 EDT 6b0f74711cda microsoft/powershell:centos7      .......
+"powershell" 2017-09-07 12:46:03 -0400 EDT 7bec8cacd139 microsoft/powershell:ubuntu16.04  .......
 #>
 function Get-DockerContainerStatus {
   process {
-    [string[]]$DockerGoFormatFields = @('ID','Names','Image','Status')
     $Cmd = 'docker'
-    $Params = @('ps','-a','--format',(Get-DockerGoTemplate -FieldNames $DockerGoFormatFields))
+    $Params = @('ps','-a','--format', '{{json .}}')
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
-    # now parse results to get individual properties, if no data return $null
-    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
-      Convert-DockerTextToPSObjects -FieldNames $DockerGoFormatFields -DockerText $Results
-    } else {
-      $null
-    }
+    # parse results, converting from JSON to PSObjects
+    $Results | ConvertFrom-Json
   }
 }
 #endregion
@@ -715,24 +604,22 @@ ContainerId, Name, Image, Status
 If error occurs, reports error and exits script.
 .EXAMPLE
 Get-DockerImageStatus | Format-Table
-
-Repository           Tag         Id           Size   CreatedSince
-----------           ---         --           ----   ------------
-microsoft/powershell ubuntu16.04 1c33de461473 365MB  2 months ago
+# Additional content to right not shown
+Containers CreatedAt                     CreatedSince Digest ID           Repository           .......
+---------- ---------                     ------------ ------ --           ----------           .......
+N/A        2017-08-31 15:45:18 -0400 EDT 7 days ago   <none> c9a0ce9c00a0 microsoft/powershell .......
+N/A        2017-08-31 15:45:11 -0400 EDT 7 days ago   <none> e83ef70fc111 microsoft/powershell .......
+N/A        2017-08-04 01:18:49 -0400 EDT 5 weeks ago  <none> 61ae8d8940e6 microsoft/powershell .......
+N/A        2017-06-14 15:29:01 -0400 EDT 2 months ago <none> 1815c82652c0 hello-world          .......
 #>
 function Get-DockerImageStatus {
   process {
-    [string[]]$DockerGoFormatFields = @('Repository','Tag','ID','Size','CreatedSince')
     $Cmd = 'docker'
-    $Params = @('images',$DockerHubRepository,'--format',(Get-DockerGoTemplate -FieldNames $DockerGoFormatFields))
+    $Params = @('images',$DockerHubRepository,'--format', '{{json .}}')
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
-    # now parse results to get individual properties, if no data return $null
-    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
-      Convert-DockerTextToPSObjects -FieldNames $DockerGoFormatFields -DockerText $Results
-    } else {
-      $null
-    }
+    # parse results, converting from JSON to PSObjects
+    $Results | ConvertFrom-Json
   }
 }
 #endregion
