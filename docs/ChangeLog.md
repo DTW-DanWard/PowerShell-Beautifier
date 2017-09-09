@@ -26,3 +26,5 @@ Issue #18 Do not indent function help descriptions when inside function definiti
 Issue #8 Improve output; hide default beautifier text (available via Verbose), invoke test script returns success bool when Quiet
 ## v 1.0.11
 Issue #19 Automate local testing for PowerShell Core in Docker containers
+## v 1.0.12
+Issue #24 Make parameter types for [System.IO.File]::WriteAllLines more explicit (error on NanoServer)

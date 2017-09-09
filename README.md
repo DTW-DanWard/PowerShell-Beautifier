@@ -28,12 +28,13 @@ The PowerShell Beautifier makes these changes:
 * ensures file ends with a new line.
 
 
+### Release Testing
 For each release the PowerShell Beautifier is tested on:
 * Windows PowerShell (v5) (native);
 * PowerShell Core - Windows (native);
-* ubuntu16.04, centos7 & opensuse42.1 (Docker containers).
+* Ubuntu 16.04, CentOS 7 & openSUSE 42.1 ([official PowerShell Core Docker containers](https://hub.docker.com/r/microsoft/powershell/tags/)).
 
-It has also been tested on OSX.
+It is also occasionally tested on OSX, Windows Server 2016 Core and Nano.
 
 
 ## Table of Contents

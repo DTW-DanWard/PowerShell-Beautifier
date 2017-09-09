@@ -46,7 +46,7 @@ function Add-DTWFileEncodingByteOrderMarker {
   #endregion
   process {
     [string]$EncodingFileSystemProvider = Get-DTWFileEncodingSystemProviderNameFromTypeName $FileEncoding.EncodingName
-    $Content = Get-Content -Path $Path -Encoding $EncodingFileSystemProvider
+    [string[]]$Content = Get-Content -Path $Path -Encoding $EncodingFileSystemProvider
     # get new file encoding object - this one will have BOM - and use it for rewriting the file back in place
     [System.Text.Encoding]$NewFileEncoding = Get-DTWFileEncodingTypeFromName -Name $FileEncoding.EncodingName
     [System.IO.File]::WriteAllLines($Path,$Content,$NewFileEncoding)
