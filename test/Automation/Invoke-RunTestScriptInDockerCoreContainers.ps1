@@ -39,17 +39,18 @@ occurs running a Docker command or running the test script, that info will also
 be output and $true will not be returned.
 .EXAMPLE
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
-  -SourcePaths 'C:\Code\GitHub\PowerShell-Beautifier' `
-  -TestFileAndParams 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet'
+  -SourcePaths 'C:\Path\To\PowerShell-Beautifier' `
+  -TestFileAndParams 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet' `
   -TestImageNames ('ubuntu16.04','centos7')
 
 Key details here: 
- - C:\Code\GitHub\PowerShell-Beautifier is a folder that gets copied to each container.
+ - C:\Path\To\PowerShell-Beautifier is a folder that gets copied to each container.
  - The test script is located under that folder, so including that source folder name,
    the path is: PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1
  - -Quiet is a parameter of Invoke-DTWBeautifyScriptTests.ps1; when specified if no
    errors occur (knock on wood) only $true is returned. This script looks for $true
    to know the test on the current container was successful.
+ - Tests with two images: microsoft/powershell:ubuntu16.04 and microsoft/powershell:centos7
 
 .EXAMPLE
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
@@ -57,12 +58,13 @@ Key details here:
   -TestFileAndParams 'TestFile.ps1'
 
 Key details here:
+ - Multiple sources are being copied.
  - TestFile.ps1 is the test file to run here.
  - We are explicitly copying over TestFile.ps1, not a parent folder, so the script will
    be located in the root of the temp folder in the container.  For that reason, there 
    is no relative path to that script in the TestFileAndParams value.
  - That script could be anywhere, doesn't have to be in the root of c:\Code, so the
-   SourcePath value could be c:\Code\TestScripts\Latest\TestFile.ps1 but the 
+   SourcePath value could be c:\Code\TestScripts\Blahblah\TestFile.ps1 but the 
    TestFileAndParams value would be the same.
 #>
 
@@ -72,7 +74,7 @@ Key details here:
 # be used by others with *preferably* no code changes. See readme.md in same folder as this
 # script for more information about running this script.
 param(
-  [string[]]$SourcePaths = @('C:\Code\GitHub\PowerShell-Beautifier'),
+  [string[]]$SourcePaths = @((Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path -Parent) -Parent)),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
   [string[]]$TestImageNames = @('ubuntu16.04','centos7','opensuse42.1'),
   [string]$DockerHubRepository = 'microsoft/powershell',
@@ -167,6 +169,8 @@ Parameters to use
 Optional message to display if error occurs
 .PARAMETER ExitOnError
 If error occurs, exit script
+.PARAMETER ErrorOccurred
+Return $true if error occurred, else false; only used by Copy-FilesToDockerContainer
 #>
 function Invoke-RunCommand {
   #region Function parameters
@@ -258,8 +262,7 @@ function Confirm-ValidateUserImages {
         } else {
           $ValidImageNames.value += $TestImageTagName
         }
-      }
-      else {
+      } else {
         if ($DockerHubRepositoryImageData.Keys -contains $TestImageTagName) {
           #region Programming note
           # if the image name is valid but not installed locally we *could* just run the 'docker pull' command
@@ -271,8 +274,7 @@ function Confirm-ValidateUserImages {
           Write-Output 'To download and install type:'
           Write-Output ('  docker pull ' + $DockerHubRepository + ':' + $TestImageTagName)
           Write-Output ' '
-        }
-        else {
+        } else {
           Write-Output ' '
           Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
           Write-Output 'Do you have an incorrect image name?  Valid image names are:'
@@ -458,6 +460,8 @@ files under folder ContainerPath
 Name of container to copy files to.
 .PARAMETER ContainerPath
 Path in container to copy files to.
+.PARAMETER ErrorOccurred
+Return $true if error occurred, else false.
 .EXAMPLE
 Copy-FilesToDockerContainer -ContainerName MyContainer -ContainerPath /tmp
 # copies files from $SourcePaths local container named MyContainer under path ContainerPath
@@ -880,14 +884,12 @@ $ValidTestImageTagNames | ForEach-Object {
   if ($ContainerInfo -eq $null) {
     # create Docker container and start it
     Initialize-DockerContainerAndStart -ImageName $ValidTestImageTagName -ContainerName $ContainerName
-  }
-  else {
+  } else {
     if ($Quiet -eq $false) { Write-Output '  Preexisting container found' }
     # if container not started, start it
     if ($ContainerInfo.Status.StartsWith('Up')) {
       if ($Quiet -eq $false) { Write-Output '  Container already started' }
-    }
-    else {
+    } else {
       # start local container
       Start-DockerContainer -ContainerName $ContainerName
     }
