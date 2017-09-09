@@ -74,7 +74,7 @@ Key details here:
 # be used by others with *preferably* no code changes. See readme.md in same folder as this
 # script for more information about running this script.
 param(
-  [string[]]$SourcePaths = @((Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path -Parent) -Parent)),
+  [string[]]$SourcePaths = @((Split-Path -Path (Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path -Parent) -Parent) -Parent)),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
   [string[]]$TestImageNames = @('ubuntu16.04','centos7','opensuse42.1'),
   [string]$DockerHubRepository = 'microsoft/powershell',
@@ -616,7 +616,11 @@ function Get-DockerContainerStatus {
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
-    $Results | ConvertFrom-Json
+    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
+      $Results | ConvertFrom-Json
+    } else {
+      $null
+    }
   }
 }
 #endregion
@@ -646,7 +650,11 @@ function Get-DockerImageStatus {
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
-    $Results | ConvertFrom-Json
+    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
+      $Results | ConvertFrom-Json
+    } else {
+      $null
+    }
   }
 }
 #endregion
@@ -879,7 +887,11 @@ $ValidTestImageTagNames | ForEach-Object {
   # get sanitized container name (based on repository + image name) for this image
   $ContainerName = ($HubImageDataHashTable[$ValidTestImageTagName]).ContainerName
   # get container info for $ContainerName
-  $ContainerInfo = Get-DockerContainerStatus | Where-Object { $_.Names -eq $ContainerName }
+  $ContainerInfo = $null
+  $AllContainerStatusInfo = Get-DockerContainerStatus
+  if ($AllContainerStatusInfo -ne $null) {
+    $ContainerInfo = $AllContainerStatusInfo | Where-Object { $_.Names -eq $ContainerName }
+  }
   # if no container exists, create one and start it
   if ($ContainerInfo -eq $null) {
     # create Docker container and start it
