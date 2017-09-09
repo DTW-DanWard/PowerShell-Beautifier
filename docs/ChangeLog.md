@@ -24,3 +24,5 @@ Issue #16 Ensure file always ends with NewLine
 Issue #18 Do not indent function help descriptions when inside function definition
 ## v 1.0.10
 Issue #8 Improve output; hide default beautifier text (available via Verbose), invoke test script returns success bool when Quiet
+## v 1.0.11
+Issue #19 Automate local testing for PowerShell Core in Docker containers
