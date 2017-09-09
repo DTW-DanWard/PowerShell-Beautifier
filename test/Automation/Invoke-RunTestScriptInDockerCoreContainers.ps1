@@ -193,9 +193,9 @@ function Invoke-RunCommand {
   process {
     try {
       if ($ErrorOccurred -ne $null) { $ErrorOccurred.Value = $false }
-      $Results.value = & $Command $Parameters 2>&1
+      $Results.Value = & $Command $Parameters 2>&1
       if ($? -eq $false -or $LastExitCode -ne 0) {
-        Out-ErrorInfo -Command $Command -Parameters $Parameters -ErrorInfo $Results.value -ErrorMessage $ErrorMessage
+        Out-ErrorInfo -Command $Command -Parameters $Parameters -ErrorInfo $Results.Value -ErrorMessage $ErrorMessage
         if ($ErrorOccurred -ne $null) { $ErrorOccurred.Value = $true }
         if ($ExitOnError -eq $true) { exit }
       }
@@ -241,14 +241,19 @@ function Confirm-ValidateUserImages {
   #endregion
   process {
     # get local images for Docker project $DockerHubRepository
-    $LocalDockerRepositoryImages = Get-DockerImageStatus
+    [object[]]$LocalDockerRepositoryImages = Get-DockerImageStatus
+    # get list of local image names
+    $LocalDockerRepositoryImageNames = $null
+    if ($LocalDockerRepositoryImages -ne $null -and $LocalDockerRepositoryImages.Count -gt 0) {
+      $LocalDockerRepositoryImageNames = $LocalDockerRepositoryImages.Tag
+    }
 
     # get local Docker server OS
     [string]$DockerServerOS = Get-DockerServerOS
 
     $TestImageNames | ForEach-Object {
       $TestImageTagName = $_
-      if ($LocalDockerRepositoryImages.Tag -contains $TestImageTagName) {
+      if ($LocalDockerRepositoryImageNames -contains $TestImageTagName) {
         # make sure image OS is valid for current Docker server OS
         [string]$ImageOS = $DockerHubRepositoryImageData.$TestImageTagName.images.os
         if ($ImageOS -ne $DockerServerOS) {
@@ -260,22 +265,21 @@ function Confirm-ValidateUserImages {
           Write-Output 'Note: if you do this there could be additional setup work if this is the first'
           Write-Output "time you are attempting to run $ImageOS containers on this machine."
         } else {
-          $ValidImageNames.value += $TestImageTagName
+          $ValidImageNames.Value += $TestImageTagName
         }
       } else {
+        # no need to check if .Keys doesn't exist; this data should always get pulled from Docker hub
         if ($DockerHubRepositoryImageData.Keys -contains $TestImageTagName) {
           #region Programming note
           # if the image name is valid but not installed locally we *could* just run the 'docker pull' command
           # ourselves programmatically.  however, pulling down that much data (WindowsServerCore is 5GB!) is
           # really something the user should initiate.
           #endregion
-          Write-Output ' '
           Write-Output "Image $TestImageTagName is not installed locally but exists in repository $DockerHubRepository"
           Write-Output 'To download and install type:'
           Write-Output ('  docker pull ' + $DockerHubRepository + ':' + $TestImageTagName)
           Write-Output ' '
         } else {
-          Write-Output ' '
           Write-Output "Image $TestImageTagName is not installed locally and does not exist in repository $DockerHubRepository"
           Write-Output 'Do you have an incorrect image name?  Valid image names are:'
           $DockerHubRepositoryImageData.Keys | Sort-Object | ForEach-Object {
@@ -364,11 +368,11 @@ function Convert-ImageDataToHashTables {
     #   the value will be a new hashtable containing the data from the PSObject plus
     #     a new property ContainerName, which is a sanitized name to be used as the
     #     Docker container name (which can only have certain characters)
-    $ImageDataPSObjects.name | Sort-Object | ForEach-Object {
+    $ImageDataPSObjects.Name | Sort-Object | ForEach-Object {
       $Name = $_
       $OneImageData = [ordered]@{}
       # get PSObject for this tag
-      $TagObject = $ImageDataPSObjects | Where-Object { $_.name -eq $Name }
+      $TagObject = $ImageDataPSObjects | Where-Object { $_.Name -eq $Name }
 
       # for each property on the PSObject, add to hashtable
       ($TagObject | Get-Member -MemberType NoteProperty).Name | Sort-Object | ForEach-Object {
@@ -587,7 +591,7 @@ function Get-DockerContainerTempFolderPath {
     # capture output and return; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
-    $Path.value = $Results
+    $Path.Value = $Results
   }
 }
 #endregion
@@ -612,7 +616,7 @@ Command      CreatedAt                     ID           Image                   
 function Get-DockerContainerStatus {
   process {
     $Cmd = 'docker'
-    $Params = @('ps','-a','--format', '{{json .}}')
+    $Params = @('ps','-a','--format','{{json .}}')
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
@@ -646,7 +650,7 @@ N/A        2017-06-14 15:29:01 -0400 EDT 2 months ago <none> 1815c82652c0 hello-
 function Get-DockerImageStatus {
   process {
     $Cmd = 'docker'
-    $Params = @('images',$DockerHubRepository,'--format', '{{json .}}')
+    $Params = @('images',$DockerHubRepository,'--format','{{json .}}')
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
@@ -674,7 +678,7 @@ linux
 function Get-DockerServerOS {
   process {
     $Cmd = 'docker'
-    $Params = @('info','--format', '{{json .}}')
+    $Params = @('info','--format','{{json .}}')
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObject, then return OSType property
