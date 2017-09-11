@@ -250,13 +250,13 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
 
     try {
       #region Specify parameters for Edit-DTWBeautifyScript call
-      # note: we want to force newline to always be CRLF because the test files are written
-      # with CRLF; if this test script is run on a non-Windows machine it won't use CRLF by
-      # default and the tests will fail
+      # note: we are specifying Unix standard LF as newline; for any machine pulling the test files 
+      # from git, the line endings will most likely be LF and not Windows CRLF
+      # regardless, the file comparison functionality will ignore the LF / CRLF difference
       [hashtable]$Params = @{
         SourcePath = $InputBadPath
         DestinationPath = $OutputTestPath
-        NewLine = "CRLF"
+        NewLine = "LF"
       }
       # if $IndentText passed, add that to params
       if ($IndentText -ne $null) {

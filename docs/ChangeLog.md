@@ -30,3 +30,5 @@ Issue #19 Automate local testing for PowerShell Core in Docker containers
 Issue #24 Make parameter types for [System.IO.File]::WriteAllLines more explicit (error on NanoServer)
 ## v 1.0.13
 Issue #25 PowerShell Core Native OSX version has issues passing scriptblocks as parameters to new PowerShell sessions; change to -Command "& { script here }" notation
+## v 1.0.14
+Issue #26 During testing when comparing files, ignore Unix vs Window line ending differences

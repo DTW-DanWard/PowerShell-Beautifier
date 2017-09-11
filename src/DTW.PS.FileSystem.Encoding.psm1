@@ -419,10 +419,10 @@ Export-ModuleMember -Function Get-DTWFileEncodingTypeFromName
 .SYNOPSIS
 Compares two files, returns $true if same, $false otherwise
 .DESCRIPTION
-Compares two files, returns $true if same, $false otherwise.
-If both files have a BOM, uses Compare-DTWFilesIncludingBOM.
-If one file has a BOM and the other does not, uses:
-Compare-DTWFilesIgnoringBOM
+Compares two files, returns $true if same, $false otherwise. If both files have a 
+BOM, uses Compare-DTWFilesIncludingBOM. If one file has a BOM and the other does 
+not, uses: Compare-DTWFilesIgnoringBOM.
+Line ending differences (Windows-style vs. Unix-style) are ignored during compare.
 .PARAMETER Path1
 Path to first file
 .PARAMETER Path2
@@ -495,7 +495,8 @@ Export-ModuleMember -Function Compare-DTWFiles
 .SYNOPSIS
 Compares two files, including BOMs, returning $true if same, $false otherwise
 .DESCRIPTION
-Compares two files, including BOMs, returning $true if same, $false otherwise
+Compares two files, including BOMs, returning $true if same, $false otherwise.
+Line ending differences (Windows-style vs. Unix-style) are ignored during compare.
 .PARAMETER Path1
 Path to first file
 .PARAMETER Path2
@@ -552,11 +553,19 @@ function Compare-DTWFilesIncludingBOM {
     #endregion
 
     #region Compare files byte by byte
-    if (((Get-Item -Path $Path1).Length) -ne ((Get-Item -Path $Path2).Length)) {
+    # get file content
+    [string]$File1SourceString = [System.IO.File]::ReadAllText($Path1)
+    [string]$File2SourceString = [System.IO.File]::ReadAllText($Path2)
+    # replace any windows line endings with Unix line endings so doesn't affect comparison;
+    # depending on a user's git settings, the test files may or may not have windows line 
+    # endings; because we need to compare the files at a binary level, safest thing to do
+    # is to replace windows line endings with Unix
+    $File1SourceString = $File1SourceString -replace "`r`n","`n"
+    $File2SourceString = $File2SourceString -replace "`r`n","`n"
+    # doing binary comparison; if not same length, we know they don't match
+    if ($File1SourceString.Length -ne $File2SourceString.Length) {
       $false
     } else {
-      [string]$File1SourceString = [System.IO.File]::ReadAllText($Path1)
-      [string]$File2SourceString = [System.IO.File]::ReadAllText($Path2)
       [bool]$Equal = $true
       for ($i = 0; $i -lt ((Get-Item -Path $Path1).Length); $i++) {
         if ($File1SourceString[$i] -ne $File2SourceString[$i]) {
@@ -579,7 +588,8 @@ Export-ModuleMember -Function Compare-DTWFilesIncludingBOM
 .SYNOPSIS
 Compares two files, ignoring BOMs, returning $true if same, $false otherwise
 .DESCRIPTION
-Compares two files, ignoring BOMs, returning $true if same, $false otherwise
+Compares two files, ignoring BOMs, returning $true if same, $false otherwise.
+Line ending differences (Windows-style vs. Unix-style) are ignored during compare.
 .PARAMETER Path1
 Path to first file
 .PARAMETER Path2
@@ -637,6 +647,12 @@ function Compare-DTWFilesIgnoringBOM {
 
     $File1Content = Get-Content -Path $Path1 -Encoding (Get-DTWFileEncodingSystemProviderNameFromTypeName -Name ((Get-DTWFileEncoding $Path1).EncodingName))
     $File2Content = Get-Content -Path $Path2 -Encoding (Get-DTWFileEncodingSystemProviderNameFromTypeName -Name ((Get-DTWFileEncoding $Path2).EncodingName))
+    # replace any windows line endings with Unix line endings so doesn't affect comparison;
+    # depending on a user's git settings, the test files may or may not have windows line 
+    # endings; because we need to compare the files at a binary level, safest thing to do
+    # is to replace windows line endings with Unix
+    $File1Content = $File1Content -replace "`r`n","`n"
+    $File2Content = $File2Content -replace "`r`n","`n"
     # if Compare-Object returns nothing, contents are the same
     $null -eq (Compare-Object $File1Content $File2Content -CaseSensitive)
   }

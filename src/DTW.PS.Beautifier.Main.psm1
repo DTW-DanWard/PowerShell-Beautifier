@@ -1128,7 +1128,7 @@ Path to the source PowerShell file
 Path to write reformatted PowerShell.  If not specified rewrites file
 in place.
 .PARAMETER IndentType
-Type of indent to use, 2Spaces, 4 Spaces or Tabs (`t)
+Type of indent to use: TwoSpaces, FourSpaces or Tabs
 .PARAMETER StandardOutput
 If specified, cleaned script is only written to stdout, not any file, and
 any errors will be written to stderror using concise format (not Write-Error).

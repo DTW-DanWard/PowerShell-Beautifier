@@ -588,7 +588,7 @@ function Get-DockerContainerTempFolderPath {
     # Note: see developer info in Invoke-TestScriptInDockerContainer about why command is run
     # this particular way
     $Cmd = 'docker'
-    $Params = @('exec',$ContainerName,'powershell','-Command',"& { [System.IO.Path]::GetTempPath() }" )
+    $Params = @('exec',$ContainerName,'powershell','-Command',"& { [System.IO.Path]::GetTempPath() }")
     # capture output and return; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
