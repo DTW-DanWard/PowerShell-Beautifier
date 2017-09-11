@@ -28,3 +28,5 @@ Issue #8 Improve output; hide default beautifier text (available via Verbose), i
 Issue #19 Automate local testing for PowerShell Core in Docker containers
 ## v 1.0.12
 Issue #24 Make parameter types for [System.IO.File]::WriteAllLines more explicit (error on NanoServer)
+## v 1.0.13
+Issue #25 PowerShell Core Native OSX version has issues passing scriptblocks as parameters to new PowerShell sessions; change to -Command "& { script here }" notation

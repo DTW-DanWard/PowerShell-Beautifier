@@ -585,9 +585,10 @@ function Get-DockerContainerTempFolderPath {
       Write-Output "Container $ContainerName isn't running but it should be; exiting script"
       exit
     }
+    # Note: see developer info in Invoke-TestScriptInDockerContainer about why command is run
+    # this particular way
     $Cmd = 'docker'
-    [scriptblock]$ScriptInContainerToGetTempPath = [scriptblock]::Create('[System.IO.Path]::GetTempPath()')
-    $Params = @('exec',$ContainerName,'powershell','-Command',$ScriptInContainerToGetTempPath)
+    $Params = @('exec',$ContainerName,'powershell','-Command',"& { [System.IO.Path]::GetTempPath() }" )
     # capture output and return; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
@@ -727,13 +728,16 @@ function Invoke-TestScriptInDockerContainer {
     # writing the Docker commands to run in PowerShell. if you were to type a Docker execute command in a
     # PowerShell window to execute a different PowerShell script in the container, it would look like this:
     #   docker exec containername powershell -Command { /SomeScript.ps1 }
-    # the gotcha is that, when converting this to a command with array of parameters to pass to the call
-    # operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 " as a scriptblock 
-    # first; if you try passing it in as a string it will not execute no matter how you format it.
+    # There are multiple gotchas:
+    #  - On Windows: when converting this to a command with array of parameters to pass to the call
+    #    operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 " as a
+    #    scriptblock first; passing it in as just a string will not execute no matter how you format it.
+    #  - But doing that fails on OSX native PowerShell Core!  The trick to getting it to work is to use
+    #    *this* format of launching PowerShell with a command:
+    #   docker exec containername powershell -Command "& { /SomeScript.ps1 }"
     #endregion
     $Cmd = 'docker'
-    [scriptblock]$ScriptInContainerToRunTest = [scriptblock]::Create($ScriptPath)
-    $Params = @('exec',$ContainerName,'powershell','-Command',$ScriptInContainerToRunTest)
+    $Params = @('exec',$ContainerName,'powershell','-Command',"& { $ScriptPath }")
 
     # capture output $Results; don't exit on error
     $Results = $null
