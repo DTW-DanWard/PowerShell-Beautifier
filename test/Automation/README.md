@@ -25,10 +25,17 @@ Invoke-RunTestScriptInDockerCoreContainers.ps1
 If you don't specify parameter TestImageNames it will attempt to test against these default images: ubuntu16.04, centos7, and opensuse42.1.
 
 
-
 **Specify particular images to use**
 ```
 Invoke-RunTestScriptInDockerCoreContainers.ps1 -TestImageNames ubuntu16.04
+```
+
+
+**Run quietly**
+
+If you don't want all that helpful text, specify -Quiet.  Note, if you do get an error, rerun without -Quiet to get more context about what failed.
+```
+Invoke-RunTestScriptInDockerCoreContainers.ps1 -Quiet
 ```
 
 
@@ -39,7 +46,6 @@ You can reuse Invoke-RunTestScriptInDockerCoreContainers.ps1 to test your own Po
 * Specify TestFileAndParams to identify the relative path to your test script and specify any necessary parameters to it.
 * Specify TestImageNames if you want to test a particular image.
 * If you are testing someone else's Core containers on Docker hub, pass a value parameter DockerHubRepository (default is microsoft/powershell).
-* Specify switch parameter -Quiet if you are sick of all the helpful text.
 
 **Some examples**
 
