@@ -21,7 +21,7 @@ The PowerShell Beautifier makes these changes:
 * cleans/rearranges all whitespace within a line
 * replaces aliases with the command names: ```dir → Get-ChildItem```
 * fixes command name casing: ```get-childitem → Get-ChildItem```
-* fixes parameter name casing: ```Test-Path -path → Test-Path -Path```
+* fixes parameter name casing: ```-path → -Path```
 * fixes [type] casing
 	* changes all PowerShell shortcuts to lower: ```[STRING] → [string]```
 	* changes other types (if in memory): ```[system.exception] → [System.Exception]```
@@ -29,12 +29,12 @@ The PowerShell Beautifier makes these changes:
 
 
 ### Release Testing
-For each release the PowerShell Beautifier is tested on:
+*For each release* the PowerShell Beautifier is tested on:
 * Windows PowerShell (v5) (native);
 * PowerShell Core - Windows (native);
 * Ubuntu 16.04, CentOS 7 & openSUSE 42.1 ([official PowerShell Core Docker containers](https://hub.docker.com/r/microsoft/powershell/tags/)).
 
-It is also occasionally tested on OSX, Windows Server 2016 Core and Nano.
+It is also occasionally tested natively on OSX, Ubuntu 16.04, Windows Server 2016 Core and Nano.
 
 
 ## Table of Contents
