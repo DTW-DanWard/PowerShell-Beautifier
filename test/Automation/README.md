@@ -12,7 +12,7 @@ To change the Server OS currently supported, there is a Docker command line tool
 
 ### Testing the Beautifier using Containers
 To use Invoke-RunTestScriptInDockerCoreContainers.ps1 to test the Beautifier:
-* Fork or download the beautifier.
+* Fork, clone or download the beautifier.
 * [Install Docker](https://www.docker.com/)
 * Pick a [PowerShell Core image](https://hub.docker.com/r/microsoft/powershell/tags/) or more to download.
 * Download image(s) using pull; for example:  ```docker pull microsoft/powershell:ubuntu16.04```

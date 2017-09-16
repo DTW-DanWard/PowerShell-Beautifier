@@ -143,7 +143,7 @@ Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -NewLine LF
 * [FAQ](docs/FAQ.md)
 * [How it works](docs/HowItWorks.md)
 * [How to test and add test cases](docs/Testing.md)
-* [How to test across OSes using Docker](test/Automation/README.md)
+* [How to automate testing the Beautifier and your scripts across OSes using Docker](test/Automation/README.md)
 * [Help add support for text editors](docs/ExternalEditors.md) like Atom and others
 * [Project roadmap](docs/Roadmap.md) - enhancements, external editors, BOM/encoding functions and more
 * [Change log](docs/ChangeLog.md)

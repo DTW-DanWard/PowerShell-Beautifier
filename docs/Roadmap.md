@@ -5,10 +5,13 @@
 Here's a tentative roadmap:
 * Done - Fix any immediate pressing issues.
 * Done - [Add support for text editors.](ExternalEditors.md) Support via file system and StandardOutput; additional editor support available upon request.
-* Done - [automate testing on Core](/test/Automation/README.md) using Docker containers (other OSes).
+* Done - [automate local testing on Core](/test/Automation/README.md) using Docker containers (other OSes).
+* Add PowerShell-Beautifier to PowerShell Gallery.
+* Automate testing on commit.
+* Add Pester testing.
 * Add JSON config file for fine-grained, user-controllable whitespace configuration.
 * Move Byte Order Mark / encoding functions to new separate project (a number of useful functions for handling BOM/BOM-less files were created for the PS Beautifier).
-* Add PowerShell-Beautifier to package managers.
+
 
 
 ## Long-term
