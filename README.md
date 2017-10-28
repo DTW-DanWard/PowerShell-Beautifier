@@ -157,7 +157,7 @@ There are several ways to contribute:
 
 
 ## Credits
-Dan Ward created the PowerShell Beautifier as a pet project back in 2011 but only recently added it to Github.  By the way, he's [available for work](http://dtwconsulting.com/); his most recent job just wrapped up and he's looking for a gig in the DevOps / build / deployment / infrastructure world.
+Dan Ward created the PowerShell Beautifier as a pet project back in 2011 but only recently added it to Github.
 
 
 ## License
