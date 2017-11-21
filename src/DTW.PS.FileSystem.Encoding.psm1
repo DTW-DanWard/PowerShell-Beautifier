@@ -165,7 +165,13 @@ function Get-DTWFileEncoding {
     # bytes from the file, and then see if it matches one of the encodings
     # we know about.
     foreach ($encodingLength in $encodingLengths | Sort-Object -Descending) {
-      $bytes = (Get-Content -Path $Path -Encoding byte -ReadCount $encodingLength)[0]
+      # as of PS Core beta 9, if you want to read bytes, you need to use -AsByteStream
+      # as -Encoding byte no longer exists
+      if (((Get-Command get-content).Parameters).Keys -contains "AsByteStream") {
+        $bytes = (Get-Content -Path $Path -AsByteStream -ReadCount $encodingLength)[0]
+      } else {
+        $bytes = (Get-Content -Path $Path -Encoding byte -ReadCount $encodingLength)[0]
+      }
       $encoding = $encodings[$bytes -join '-']
 
       # If we found an encoding that had the same preamble bytes,
@@ -212,7 +218,14 @@ function Get-DTWFileEncoding {
        BOM in.
     #>
     #endregion
-    $Content = (Get-Content -Path $Path -Encoding byte -ReadCount $ByteCountToCheck -TotalCount $ByteCountToCheck)
+    $Content = $null
+    # as of PS Core beta 9, if you want to read bytes, you need to use -AsByteStream
+    # as -Encoding byte no longer exists
+    if (((Get-Command get-content).Parameters).Keys -contains "AsByteStream") {
+      $Content = Get-Content -Path $Path -AsByteStream -ReadCount $ByteCountToCheck -TotalCount $ByteCountToCheck
+    } else {
+      $Content = Get-Content -Path $Path -Encoding byte -ReadCount $ByteCountToCheck -TotalCount $ByteCountToCheck
+    }
     # get actual count of bytes (in case less than $ByteCountToCheck)
     $ByteCount = $Content.Count
     [bool]$NonAsciiFound = $false
