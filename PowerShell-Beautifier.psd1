@@ -1,4 +1,4 @@
-﻿@{ ModuleVersion         = '1.2.0'
+﻿@{ ModuleVersion         = '1.2.3'
    Author                = 'Dan Ward'
    CompanyName           = 'DTWConsulting.com'
    Copyright             = 'Copyright 2012-2017 Dan Ward. All rights reserved.'
@@ -13,5 +13,10 @@
                               ValidAttributeNames = $null;
                               ValidMemberNames = $null;
                               ValidVariableNames = $null;
+                              PSData = @{
+                                Tags = @('Beautifier','WhiteSpace','PrettyPrinter','Tabs','Spaces','Format','Core')
+                                LicenseUri = 'https://github.com/DTW-DanWard/PowerShell-Beautifier/blob/master/LICENSE'
+                                ProjectUri = 'https://github.com/DTW-DanWard/PowerShell-Beautifier'
+                              }
                            }
 }

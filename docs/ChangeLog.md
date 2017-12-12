@@ -37,4 +37,9 @@ Issue #33 Support either Get-Content -Encoding byte or Get-Content -AsByteStream
 with this Core MR: https://github.com/PowerShell/PowerShell/pull/5080
 ## v 1.2.0
 Updates for PowerShell Gallery: rename PSD1 name to match module, move PSD1 to root
-
+## v 1.2.1
+Additional update for PowerShell Gallery: module manifest data
+## v 1.2.2
+Final PowerShell Gallery updates
+## v 1.2.3
+Final PowerShell Gallery updates - part 2
