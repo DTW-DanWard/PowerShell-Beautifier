@@ -167,7 +167,7 @@ function Get-DTWFileEncoding {
     foreach ($encodingLength in $encodingLengths | Sort-Object -Descending) {
       # as of PS Core beta 9, if you want to read bytes, you need to use -AsByteStream
       # as -Encoding byte no longer exists
-      if (((Get-Command get-content).Parameters).Keys -contains "AsByteStream") {
+      if (((Get-Command Get-Content).Parameters).Keys -contains "AsByteStream") {
         $bytes = (Get-Content -Path $Path -AsByteStream -ReadCount $encodingLength)[0]
       } else {
         $bytes = (Get-Content -Path $Path -Encoding byte -ReadCount $encodingLength)[0]
@@ -221,7 +221,7 @@ function Get-DTWFileEncoding {
     $Content = $null
     # as of PS Core beta 9, if you want to read bytes, you need to use -AsByteStream
     # as -Encoding byte no longer exists
-    if (((Get-Command get-content).Parameters).Keys -contains "AsByteStream") {
+    if (((Get-Command Get-Content).Parameters).Keys -contains "AsByteStream") {
       $Content = Get-Content -Path $Path -AsByteStream -ReadCount $ByteCountToCheck -TotalCount $ByteCountToCheck
     } else {
       $Content = Get-Content -Path $Path -Encoding byte -ReadCount $ByteCountToCheck -TotalCount $ByteCountToCheck

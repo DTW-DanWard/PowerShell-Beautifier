@@ -25,7 +25,7 @@ In the *test* folder are some test before/after .ps1 files along with script to 
 ## Two more things to know about Invoke-DTWBeautifyScriptTests.ps1
 
 ### If you are running the test script repeatedly without changing beautifier code, use option -SkipModuleReload
-If you are running Invoke-DTWBeautifyScriptTests.ps1 over and over without making any code changes to the beautifier itself then specify parameter *-SkipModuleReload*.  By default Invoke-DTWBeautifyScriptTests.ps1 force reloads DTW.PS.Beautifier.psd1 each time to make sure you are using the latest code.  However if you are only testing some changes under 1_Input_Bad and 3_Output_Correct, there's no need to reload the module.  Using -SkipModuleReload will make it run much faster.
+If you are running Invoke-DTWBeautifyScriptTests.ps1 over and over without making any code changes to the beautifier itself then specify parameter *-SkipModuleReload*.  By default Invoke-DTWBeautifyScriptTests.ps1 force reloads PowerShell-Beautifier.psd1 each time to make sure you are using the latest code.  However if you are only testing some changes under 1_Input_Bad and 3_Output_Correct, there's no need to reload the module.  Using -SkipModuleReload will make it run much faster.
 
 ```
 .\Invoke-DTWBeautifyScriptTests.ps1 -SkipModuleReload

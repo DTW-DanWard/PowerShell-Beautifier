@@ -35,3 +35,6 @@ Issue #26 During testing when comparing files, ignore Unix vs Window line ending
 ## v 1.0.15
 Issue #33 Support either Get-Content -Encoding byte or Get-Content -AsByteStream (PS Core Beta 9+)
 with this Core MR: https://github.com/PowerShell/PowerShell/pull/5080
+## v 1.2.0
+Updates for PowerShell Gallery: rename PSD1 name to match module, move PSD1 to root
+

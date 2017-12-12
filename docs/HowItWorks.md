@@ -110,8 +110,8 @@ When the module is loaded, the lookup tables are created but are empty.  It's no
 
 Once populated you can see the values in the module's PrivateData, i.e.
 ```
-(Get-Module DTW.PS.Beautifier).PrivateData
-(Get-Module DTW.PS.Beautifier).PrivateData.ValidCommandNames
+(Get-Module PowerShell-Beautifier).PrivateData
+(Get-Module PowerShell-Beautifier).PrivateData.ValidCommandNames
 ```
 
 

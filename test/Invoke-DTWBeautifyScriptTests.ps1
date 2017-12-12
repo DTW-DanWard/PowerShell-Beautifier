@@ -16,7 +16,7 @@ running the test script.
 There are a lot more details; see script source and documentation on Github for 
 more information.
 .PARAMETER SkipModuleReload
-Skips reloading the DTW.PS.Beautifier module.  If you aren't making beautifier
+Skips reloading the PowerShell-Beautifier module.  If you aren't making beautifier
 code changes but have made changes to the input bad and/or output correct files
 and want to quickly retest without reloading module, specify this.
 .PARAMETER Quiet
@@ -295,9 +295,9 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
 
 #region Re/load beautifier module
 # name of this module
-$ModuleName = 'DTW.PS.Beautifier'
-# module is located one folder up, then down into 'src' source folder
-[string]$ModulePath = Join-Path -Path (Join-Path -Path (Split-Path $ScriptFolder -Parent) -ChildPath 'src') -ChildPath ($ModuleName + '.psd1')
+$ModuleName = 'PowerShell-Beautifier'
+# module is located one folder up
+[string]$ModulePath = Join-Path -Path (Split-Path $ScriptFolder -Parent) -ChildPath ($ModuleName + '.psd1')
 # make sure it's actually there
 if ($false -eq (Test-Path -Path $ModulePath)) {
   Write-Error "Beautifier module not found at path: $ModulePath"

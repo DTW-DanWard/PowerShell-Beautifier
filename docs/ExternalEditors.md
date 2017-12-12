@@ -10,12 +10,12 @@ These are some of the anticipated challenges to add support for any particular t
 This beautifier runs from *within* PowerShell; it requires PowerShell to work.  So the first step to getting this to work from within an editor will be to figure out how to launch a PowerShell instance with a specific command from the editor.  It will look something like this:
 
 ```
-powershell.exe -NoProfile -NoLogo -Command "Import-Module <path to>\DTW.PS.Beautifier.psd1; Edit-DTWBeautifyScript -SourcePath <path to current file>"
+powershell.exe -NoProfile -NoLogo -Command "Import-Module <path to>\PowerShell-Beautifier.psd1; Edit-DTWBeautifyScript -SourcePath <path to current file>"
 ```
 
 If you want content via stdout, it will look like:
 ```
-powershell.exe -NoProfile -NoLogo -Command "Import-Module <path to>\DTW.PS.Beautifier.psd1; Edit-DTWBeautifyScript -StandardOutput -SourcePath <path to current file>"
+powershell.exe -NoProfile -NoLogo -Command "Import-Module <path to>\PowerShell-Beautifier.psd1; Edit-DTWBeautifyScript -StandardOutput -SourcePath <path to current file>"
 ```
 
 

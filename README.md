@@ -57,7 +57,7 @@ It is also occasionally tested natively on OSX, Ubuntu 16.04, Windows Server 201
 2. Change directory to the module.
 3. Import the module.  (This takes a few seconds the first time but is fast thereafter.)
 ```
-Import-Module .\DTW.PS.Beautifier.psd1
+Import-Module .\PowerShell-Beautifier.psd1
 ```
 
 And confirm it is loaded correctly:
