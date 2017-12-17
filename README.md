@@ -53,16 +53,17 @@ It is also occasionally tested natively on OSX, Ubuntu 16.04, Windows Server 201
 
 
 ## Setup
-1. Download the PowerShell Beautifier utility.
-2. Change directory to the module.
-3. Import the module.  (This takes a few seconds the first time but is fast thereafter.)
+1. Download the PowerShell Beautifier utility. Clone it, zip it or get it from the PowerShell Gallery:
+```
+Install-Module -Name PowerShell-Beautifier
+```
+2. Import the module.  This takes a few seconds the first time but is fast thereafter.
 ```
 Import-Module .\PowerShell-Beautifier.psd1
 ```
-
-And confirm it is loaded correctly:
+3. Confirm it is loaded correctly:
 ```
-PS C:\> Get-Help Edit-DTWBeautifyScript
+Get-Help Edit-DTWBeautifyScript
 
 NAME
     Edit-DTWBeautifyScript
