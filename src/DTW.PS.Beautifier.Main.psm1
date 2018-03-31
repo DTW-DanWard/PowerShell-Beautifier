@@ -888,6 +888,9 @@ function Write-TokenContent_Type {
     # next, remove any brackets found in the type name (some versions PowerShell include, some don't)
     if (($TypeName[0] -eq '[') -and ($TypeName[-1] -eq ']')) {
       $TypeName = $TypeName.Substring(1,$TypeName.Length - 2)
+      $HadSquareBrackets = $true
+    } else {
+      $HadSquareBrackets = $false
     }
 
     # OK, now let's try to get the correct case for the type
@@ -906,8 +909,10 @@ function Write-TokenContent_Type {
       try { $TypeName = ([type]::GetType($TypeName,$true,$true)).FullName }
       catch { $TypeName = $TypeName }
     }
-    # finally re-add [ ] around type name for writing back
-    $TypeName = '[' + $TypeName + ']'
+    if ($HadSquareBrackets) {
+      # finally re-add [ ] around type name for writing back
+      $TypeName = '[' + $TypeName + ']'
+    }
     Add-StringContentToDestinationFileStreamWriter $TypeName
   }
 }
