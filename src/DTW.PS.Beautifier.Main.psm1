@@ -1043,10 +1043,10 @@ function Test-AddSpaceFollowingToken {
       ',','++',';' -contains $SourceTokens[$TokenIndex + 1].Content) { return $false }
     #endregion
 
-    #region Don't add space after Operator > as in: 2>$null or 2>&1
+    #region Don't add space after Operator > as in: 2>$null or 2>&1 (unless it's followed by other Operator, e.g. 2>&1 | Out-File)
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '2>' -and
       $SourceTokens[$TokenIndex + 1].Type -eq 'Variable' -and $SourceTokens[$TokenIndex + 1].Content -eq 'null') { return $false }
-    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '2>&1') { return $false }
+    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '2>&1' -and $SourceTokens[$TokenIndex + 1].Type -ne 'Operator') { return $false }
     #endregion
 
     #region Don't add space after Keyword param
