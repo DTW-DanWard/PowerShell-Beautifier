@@ -581,7 +581,8 @@ function Compare-DTWFilesIncludingBOM {
     } else {
       [bool]$Equal = $true
       for ($i = 0; $i -lt ((Get-Item -Path $Path1).Length); $i++) {
-        if ($File1SourceString[$i] -ne $File2SourceString[$i]) {
+        # we use case-sensitive not equals (-cne instead of -ne)
+        if ($File1SourceString[$i] -cne $File2SourceString[$i]) {
           $Equal = $false
           break
         }
