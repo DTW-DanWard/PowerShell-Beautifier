@@ -1038,9 +1038,11 @@ function Test-AddSpaceFollowingToken {
     if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and ($SourceTokens[$TokenIndex].Content -eq ',' -or $SourceTokens[$TokenIndex].Content -eq '!')) { return $false }
     #endregion
 
-    #region Don't add space if next Operator token is: , ++ ;
+    #region Don't add space if next Operator token is: , ++ ; (except if it's after return keyword)
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex + 1].Type -eq 'Operator' -and
-      ',','++',';' -contains $SourceTokens[$TokenIndex + 1].Content) { return $false }
+      ',','++',';' -contains $SourceTokens[$TokenIndex + 1].Content -and -not
+      ($SourceTokens[$TokenIndex].Type -eq 'Keyword' -and $SourceTokens[$TokenIndex].Content -eq 'return'))
+      { return $false }
     #endregion
 
     #region Don't add space after Operator > as in: 2>$null or 2>&1
