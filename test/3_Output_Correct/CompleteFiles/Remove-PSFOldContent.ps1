@@ -48,7 +48,7 @@ function Move-PSFPSItemsToRecycleBin {
     Write-Host ' '
     Write-Host "Processing path: $RootPath"
     Write-Host ' '
-    Write-Host $($ItemOutputFormat -f @( 'Recycle ID','Item ID','Last Updated','Name','Path'))
+    Write-Host $($ItemOutputFormat -f @('Recycle ID','Item ID','Last Updated','Name','Path'))
     Write-Host ' '
 
     # need to ignore folders defined under these locations
@@ -102,7 +102,7 @@ function Move-PSFPSItemsToRecycleBin {
 
 # set content paths
 [string[]]$ContentPaths = "master:\content\widgets"
-Get-ChildItem -Path "master:\content\Sites" | Where-Object { @( "newcorporate","locations") -notcontains $_.Name } | ForEach-Object {
+Get-ChildItem -Path "master:\content\Sites" | Where-Object { @("newcorporate","locations") -notcontains $_.Name } | ForEach-Object {
   $ContentPaths += "master:\content\Sites\" + $_.Name + "\home\_subcontent"
   $ContentPaths += "master:\content\Sites\" + $_.Name + "\home\about-us\_subcontent"
   $ContentPaths += "master:\content\Sites\" + $_.Name + "\home\careers\_subcontent"

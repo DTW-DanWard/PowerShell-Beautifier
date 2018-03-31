@@ -1022,6 +1022,10 @@ function Test-AddSpaceFollowingToken {
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex + 1].Type -eq 'GroupEnd' -and $SourceTokens[$TokenIndex + 1].Content -eq ')') { return $false }
     #endregion
 
+    # region Don't write space after @( ever
+    if ($SourceTokens[$TokenIndex].Type -eq 'GroupStart' -and ($SourceTokens[$TokenIndex].Content -eq '@(')) { return $false }
+    #endregion
+
     #region Don't write space if GroupStart ( { @{ followed by GroupEnd or NewLine
     if ($SourceTokens[$TokenIndex].Type -eq 'GroupStart' -and ($SourceTokens[$TokenIndex + 1].Type -eq 'GroupEnd' -or $SourceTokens[$TokenIndex + 1].Type -eq 'NewLine')) { return $false }
     #endregion
