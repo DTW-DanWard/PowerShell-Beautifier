@@ -11,3 +11,4 @@
 
 # make sure we don't put class name in square brackets
 class DontBreakClassDef{}
+$Instance = [DontBreakClassDef]::new()

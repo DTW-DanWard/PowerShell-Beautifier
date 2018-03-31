@@ -893,13 +893,16 @@ function Write-TokenContent_Type {
       $HadSquareBrackets = $false
     }
 
-    # OK, now let's try to get the correct case for the type
-    # first, if it's a built-in PowerShell shortcut type like [int] or [string] then
-    # i.e. there's no . character in the type name, in which case, just lowercase it
-    if ($TypeName.IndexOf('.') -eq -1) {
+    $BuiltInShortcutTypes = @("string","char","byte","int","long","decimal","single","double",
+      "bool","datetime","guid","hashtable","xml","array")
+
+    if ($BuiltInShortcutTypes -contains $TypeName) {
+      # OK, now let's try to get the correct case for the type
+      # first, if it's a built-in PowerShell shortcut type like [int] or [string] then
+      # just lowercase it.
       $TypeName = $TypeName.ToLower()
-    } else {
-      # else there is a . character in the type, so let's try to create the type and then get the 
+    } elseif ($TypeName.IndexOf('.') -ne -1) {
+      # else if there is a . character in the type, so let's try to create the type and then get the 
       # fullname from the type itself.  But if that fails (module/assembly not loaded) then just 
       # use the original type name value from the script.
 
@@ -908,6 +911,8 @@ function Write-TokenContent_Type {
       # if doesn't, take $TypeName and re-add brackets
       try { $TypeName = ([type]::GetType($TypeName,$true,$true)).FullName }
       catch { $TypeName = $TypeName }
+    } else {
+      # else it's probably a custom type or class name, let's not touch it.
     }
     if ($HadSquareBrackets) {
       # finally re-add [ ] around type name for writing back
