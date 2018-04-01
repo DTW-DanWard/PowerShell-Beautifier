@@ -8,3 +8,7 @@
 
 # type that won't exist in memory; use name as-is
 [System.Foo.MeowMeow]$C = $null
+
+# make sure we don't put class name in square brackets
+class DontBreakClassDef{}
+$Instance = [DontBreakClassDef]::new()
