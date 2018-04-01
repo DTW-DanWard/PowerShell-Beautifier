@@ -23,8 +23,9 @@ The PowerShell Beautifier makes these changes:
 * fixes command name casing: ```get-childitem → Get-ChildItem```
 * fixes parameter name casing: ```-path → -Path```
 * fixes [type] casing
-	* changes all PowerShell shortcuts to lower: ```[STRING] → [string]```
-	* changes other types (if in memory): ```[system.exception] → [System.Exception]```
+	* changes built-in shortcut / type accelerator: ```[STRING] → [string]```
+    *   ```[DSCLocalConfigurationManager] → [DscLocalConfigurationManager]```
+	* changes other types if in memory: ```[system.exception] → [System.Exception]```
 * ensures file ends with a new line.
 
 

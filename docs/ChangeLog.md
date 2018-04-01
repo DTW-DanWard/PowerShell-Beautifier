@@ -43,3 +43,10 @@ Additional update for PowerShell Gallery: module manifest data
 Final PowerShell Gallery updates
 ## v 1.2.3
 Final PowerShell Gallery updates - part 2
+## v 1.2.4
+Numerous fixes from user @m-kostrzewa - many thanks!
+* Add support (don't break) custom PowerShell class definitions
+* Don't add space after @(
+* Support for dot-sourcing file paths in quotes
+* Add space after redirection operator if followed by additional text
+* Separate return statements followed by comma (when returning an array)

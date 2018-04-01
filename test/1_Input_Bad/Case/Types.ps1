@@ -1,6 +1,9 @@
-# built-in types; should be all lowercase
+# built-in types; view list with:
+# ([psobject].assembly.gettype("System.Management.Automation.TypeAccelerators")::Get).Keys
 [STRING]$A = 'asdf'
 [strING]$AA = 'qwerty'
+[CMDLetBinding]
+[DSCLocalConfigurationManager]
 
 # type that will exist in memory; fix casing
 [system.TEXT.encoding]$B = $null

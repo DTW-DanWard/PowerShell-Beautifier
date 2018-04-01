@@ -48,8 +48,10 @@ Had the Content value of the Command *not* been found in ValidCommandNames, that
 
 #### Looking up and replacing [type] references
 Handling/rewriting [type] references is slightly more interesting:
-1. If the type text does not have a period, like [string], [int] or [math], it is considered a PowerShell type shortcut, in which case the text of the type is set to lower case.
-2. If a period is found in the type text, like [SYSTEM.IO.streamwriter], the beautifier attempts to get a reference to the type and, if successful, gets its FullName, which will have the correct casing - i.e. [System.IO.StreamWriter].  If the type isn't found (not in memory? typo?) it uses the type token content text as-is.
+1. If the type text is a built-in shortcut / type accelerator, it will use the casing/value as defined.  Most of the time this means setting the text to all lower case - although not all type accelerators are all lower (DscLocalConfigurationManager).  You can see all values with:
+```([psobject].Assembly.GetType("System.Management.Automation.TypeAccelerators")::Get).Keys```
+2. Else if a period is found in the type text, like [SYSTEM.IO.streamwriter], the beautifier attempts to get a reference to the type and, if successful, gets its FullName, which will have the correct casing - i.e. [System.IO.StreamWriter].
+3. Otherwise if the type isn't found (not in memory? typo?) it uses the type token content text as-is.
 
 
 While all this seems smart, there are limitations.

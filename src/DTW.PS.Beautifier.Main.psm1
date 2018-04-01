@@ -69,6 +69,11 @@ function Initialize-ProcessVariables {
 
     # initialize destination storage
     [System.IO.StreamWriter]$script:DestinationStreamWriter = $null
+
+    # get official type shortcut / accelerator list from PowerShell
+    $script:BuiltInTypeAccelerators = ([psobject].Assembly.GetType("System.Management.Automation.TypeAccelerators")::Get).Keys
+    # add math because it is not in the list (???)
+    $script:BuiltInTypeAccelerators += 'math'
     #endregion
   }
 }
@@ -275,7 +280,7 @@ Returns: true
 Get-ValidVariableName -Name MyVar; Get-ValidVariableName -Name MYVAR
 Returns: MyVar, MyVar
 #>
-function Get-ValidVariableNameL {
+function Get-ValidVariableName {
   #region Function parameters
   [CmdletBinding()]
   param(
@@ -893,14 +898,11 @@ function Write-TokenContent_Type {
       $HadSquareBrackets = $false
     }
 
-    $BuiltInShortcutTypes = @("string","char","byte","int","long","decimal","single","double",
-      "bool","datetime","guid","hashtable","xml","array")
-
-    if ($BuiltInShortcutTypes -contains $TypeName) {
-      # OK, now let's try to get the correct case for the type
-      # first, if it's a built-in PowerShell shortcut type like [int] or [string] then
-      # just lowercase it.
-      $TypeName = $TypeName.ToLower()
+    # attempt to get official built-in type accelerator name
+    $OfficialTypeAccelerator = $BuiltInTypeAccelerators -eq $TypeName
+    if ($OfficialTypeAccelerator.Count -eq 1) {
+      # if found, will have correct casing so use that
+      $TypeName = $OfficialTypeAccelerator[0]
     } elseif ($TypeName.IndexOf('.') -ne -1) {
       # else if there is a . character in the type, so let's try to create the type and then get the 
       # fullname from the type itself.  But if that fails (module/assembly not loaded) then just 
@@ -1057,8 +1059,7 @@ function Test-AddSpaceFollowingToken {
     #region Don't add space if next Operator token is: , ++ ; (except if it's after return keyword)
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex + 1].Type -eq 'Operator' -and
       ',','++',';' -contains $SourceTokens[$TokenIndex + 1].Content -and -not
-      ($SourceTokens[$TokenIndex].Type -eq 'Keyword' -and $SourceTokens[$TokenIndex].Content -eq 'return'))
-      { return $false }
+      ($SourceTokens[$TokenIndex].Type -eq 'Keyword' -and $SourceTokens[$TokenIndex].Content -eq 'return')) { return $false }
     #endregion
 
     #region Don't add space after Operator > as in: 2>$null or 2>&1 (unless it's followed by other Operator, e.g. 2>&1 | Out-File)
@@ -1107,7 +1108,7 @@ More specifically it:
  - fixes command name casing (get-childitem -> Get-ChildItem)
  - fixes parameter name casing (Test-Path -path -> Test-Path -Path)
  - fixes [type] casing
-     changes all PowerShell shortcuts to lower ([STRING] -> [string])
+     changes shortcut/type accelerators to built-in value ([STRING] -> [string])
      changes other types ([system.exception] -> [System.Exception]
        only works for types loaded into memory
  - cleans/rearranges all whitespace within a line
