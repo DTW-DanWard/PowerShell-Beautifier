@@ -28,7 +28,7 @@ Folders and/or files on local machine to copy to container
 Path to the test script with any params to run test; path is relative to SourcePaths;
 see example for more details 
 .PARAMETER TestImageNames
-Docker image names to test against. Default values: 'ubuntu16.04', 'centos7', 'opensuse42.1'
+Docker image names to test against. Default values: 'ubuntu16.04', 'centos7'
 .PARAMETER DockerHubRepository
 Docker hub repository team/project name. Default value: "microsoft/powershell"
 .PARAMETER Quiet
@@ -76,7 +76,7 @@ Key details here:
 param(
   [string[]]$SourcePaths = @((Split-Path -Path (Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path -Parent) -Parent) -Parent)),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
-  [string[]]$TestImageNames = @('ubuntu16.04','centos7','opensuse42.1'),
+  [string[]]$TestImageNames = @('ubuntu16.04','centos7'),
   [string]$DockerHubRepository = 'microsoft/powershell',
   [switch]$Quiet
 )
@@ -588,7 +588,7 @@ function Get-DockerContainerTempFolderPath {
     # Note: see developer info in Invoke-TestScriptInDockerContainer about why command is run
     # this particular way
     $Cmd = 'docker'
-    $Params = @('exec',$ContainerName,'powershell','-Command',"& { [System.IO.Path]::GetTempPath() }")
+    $Params = @('exec',$ContainerName,'pwsh','-Command',"& { [System.IO.Path]::GetTempPath() }")
     # capture output and return; if error, Invoke-RunCommand exits script
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
@@ -610,7 +610,6 @@ Get-DockerContainerStatus | Format-Table
 # Additional content to right not shown
 Command      CreatedAt                     ID           Image                             .......
 -------      ---------                     --           -----                             .......
-"powershell" 2017-09-07 12:54:26 -0400 EDT cbd1e9ea22d9 microsoft/powershell:opensuse42.1 .......
 "powershell" 2017-09-07 12:50:43 -0400 EDT 6b0f74711cda microsoft/powershell:centos7      .......
 "powershell" 2017-09-07 12:46:03 -0400 EDT 7bec8cacd139 microsoft/powershell:ubuntu16.04  .......
 #>
@@ -727,17 +726,17 @@ function Invoke-TestScriptInDockerContainer {
     # if you are reading this script, this next bit contains the biggest gotcha I encountered when
     # writing the Docker commands to run in PowerShell. if you were to type a Docker execute command in a
     # PowerShell window to execute a different PowerShell script in the container, it would look like this:
-    #   docker exec containername powershell -Command { /SomeScript.ps1 }
+    #   docker exec containername pwsh -Command { /SomeScript.ps1 }
     # There are multiple gotchas:
     #  - On Windows: when converting this to a command with array of parameters to pass to the call
     #    operator & (i.e.: & $Cmd $Params), you must explicitly create " /SomeScript.ps1 " as a
     #    scriptblock first; passing it in as just a string will not execute no matter how you format it.
     #  - But doing that fails on OSX native PowerShell Core!  The trick to getting it to work is to use
     #    *this* format of launching PowerShell with a command:
-    #   docker exec containername powershell -Command "& { /SomeScript.ps1 }"
+    #   docker exec containername pwsh -Command "& { /SomeScript.ps1 }"
     #endregion
     $Cmd = 'docker'
-    $Params = @('exec',$ContainerName,'powershell','-Command',"& { $ScriptPath }")
+    $Params = @('exec',$ContainerName,'pwsh','-Command',"& { $ScriptPath }")
 
     # capture output $Results; don't exit on error
     $Results = $null
