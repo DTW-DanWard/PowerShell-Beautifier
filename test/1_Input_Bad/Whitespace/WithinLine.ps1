@@ -13,6 +13,9 @@ Get-ChildItem  -Path       c:\temp                 |    ForEach-Object       {
                           }
           }
 
+Write-Host "hi" 2>&1   | Out-File x.txt
+Write-Host "hi2" 2>&1| Out-File x.txt
+
 $HT2=@{A=1;B=2;C=3;D=@{AA=11;BB=22;CC=33}}
 
 $HT3    =@{
