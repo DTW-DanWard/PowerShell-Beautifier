@@ -33,7 +33,7 @@ The PowerShell Beautifier makes these changes:
 *For each release* the PowerShell Beautifier is tested on:
 * Windows PowerShell (v5) (native);
 * PowerShell Core - Windows (native);
-* Ubuntu 16.04, CentOS 7 & openSUSE 42.1 ([official PowerShell Core Docker containers](https://hub.docker.com/r/microsoft/powershell/tags/)).
+* Ubuntu 16.04 and CentOS 7 ([official PowerShell Core Docker containers](https://hub.docker.com/r/microsoft/powershell/tags/)).
 
 It is also occasionally tested natively on OSX, Ubuntu 16.04, Windows Server 2016 Core and Nano.
 

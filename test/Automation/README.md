@@ -43,8 +43,8 @@ ubuntu16.04
 
 **Run Container script with all defaults images**
 
-If you don't specify parameter -TestImageNames it will attempt to test against these default images: ubuntu16.04, centos7, and opensuse42.1.  Also, the script has logic for handling some different situations:
-* Missing image (opensuse42.1 in this example) - the script gives you the command to pull it down.
+If you don't specify parameter -TestImageNames it will attempt to test against these default images: ubuntu16.04 and centos7.  Also, the script has logic for handling some different situations:
+* Missing image - the script gives you the command to pull it down.
 * Container already running (ubuntu16.04 in this example) - reuses existing container.
 * Image with no container yet (centos7 in this example) - it will create it for you.
 ```
