@@ -48,3 +48,6 @@ $BBB = $(
  1    +  `
       2     +      `
    3                 )          
+
+# need case at end of file - operator code checks next token
+Write-Host "hi"2>&1
