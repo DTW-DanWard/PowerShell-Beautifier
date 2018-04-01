@@ -19,3 +19,8 @@ And this is the description
 #>
   "Testing"
 }
+
+function Test-ReturnsArray {
+  $Arr = @()
+  return,$Arr
+}
