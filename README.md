@@ -113,6 +113,13 @@ This doesn't modify the source file; it outputs the clean version to a new file.
 Edit-DTWBeautifyScript -SourcePath C:\temp\MyFile.ps1 -DestinationPath c:\temp\MyFile_AFTER.ps1
 ```
 
+### Run on single file in Spacious mode
+By default, Beautifier removes spaces between comma-separated values and between type and variable name.
+This behaviour can be controller using `-Spacious` flag.
+```
+Edit-DTWBeautifyScript C:\temp\MyFile.ps1 -Spacious
+```
+
 ### Run on multiple files in a directory structure
 Time for the pipeline.
 ```
