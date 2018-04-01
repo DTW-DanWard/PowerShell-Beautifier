@@ -1006,6 +1006,8 @@ function Test-AddSpaceFollowingToken {
     #region Don't write spaces before or after these Operators: . .. ::   (with one exception - dot-sourcing) 
     # in general, don't write spaces before or after these operators except for if Operator '.' is followed by a Command; dot-sourcing a file like:  .  .\File.ps1
     if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '.' -and $SourceTokens[$TokenIndex + 1].Type -eq 'Command') { return $true }
+    # also, handle the case where we're dot sourcing a filepath given as a string, like: . "File.ps1"
+    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '.' -and $SourceTokens[$TokenIndex + 1].Type -eq 'String') { return $true }
 
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex + 1].Type -eq 'Operator' -and $SourceTokens[$TokenIndex + 1].Content -eq '.') { return $false }
     if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '.') { return $false }
