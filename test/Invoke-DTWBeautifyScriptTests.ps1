@@ -204,7 +204,9 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
     [ValidateNotNullOrEmpty()]
     [string]$OutputCorrectPath,
     [Parameter(Mandatory = $false)]
-    $IndentText
+    $IndentText,
+    [Parameter(Mandatory = $false)]
+    [bool]$Spacious
   )
   #endregion
   process {
@@ -261,6 +263,10 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
       # if $IndentText passed, add that to params
       if ($IndentText -ne $null) {
         $Params.IndentType = $IndentText
+      }
+      # if $Spacious is set, add it to params
+      if ($Spacious) {
+        $Params.Spacious = $true
       }
       # finally: take the source file, run through beautifier and output in test folder
       if (!$Quiet) { Write-Output ('  File: ' + (Split-Path -Path $InputBadPath -Leaf)) }
@@ -356,8 +362,13 @@ if ($false -eq (Test-Path -Path $RootOutputTestFolderPath)) {
 # FYI, this file is located in the Whitespace folder
 $IndentationTestFileName = 'Indentation.ps1'
 
+# $SpaciousTestFolder is the name of the test folder specifically used for
+# testing different spacing in Spacious and Not Spacious mode.
+# Two behaviours are tested: with $Spacious set to $true and $false.
+$SpaciousTestFolder = 'SpaciousMode'
+
 # test folders to process - list all of them here
-[string[]]$TestFolders = 'Case','CompleteFiles','FileEncoding','Rename','Whitespace'
+[string[]]$TestFolders = 'Case','CompleteFiles','FileEncoding','Rename','Whitespace','SpaciousMode'
 # this structure was originally designed to test just one or two folders at a time 
 # (via script parameters); turns out running all scripts in all test folders is pretty
 # darn fast so there's no real need for the granularity; let's just run them all
@@ -383,6 +394,11 @@ $TestFolders | ForEach-Object {
       Write-Error -Message ($Results.ToString())
       exit
     }
+  }
+
+  # Skip SpaciousMode folder, it is tested separately
+  if ($FolderName -eq "SpaciousMode") {
+    return
   }
 
   # loop through all files in folder EXCEPT file named $IndentationTestFileName
@@ -426,6 +442,45 @@ if ($TestFolders -contains 'Whitespace') {
 }
 #endregion
 
+
+#region Test Spacious mode
+if ($TestFolders -contains 'SpaciousMode') {
+  Write-Output "Running Spacious mode tests."
+
+  # get spacious mode input folder
+  $SpaciousTestInputFolder = Join-Path -Path $RootInputBadFolderPath -ChildPath $SpaciousTestFolder
+  $OutputTestFolderPath = Join-Path -Path $RootOutputTestFolderPath -ChildPath $SpaciousTestFolder
+  $OutputCorrectFolderPath = Join-Path -Path $RootOutputCorrectFolderPath -ChildPath $SpaciousTestFolder
+
+  # helper func
+  function Test-SpaciousMode {
+    param([bool]$IsSpacious)
+    if ($IsSpacious) {
+      $Prefix = "Spacious"
+    } else {
+      $Prefix = "NotSpacious"
+    }
+
+    $OutputFileName = $Prefix + "_" + $SourceFileName
+
+    $OutputTestPath = Join-Path -Path $OutputTestFolderPath -ChildPath $OutputFileName
+    $OutputCorrectPath = Join-Path -Path $OutputCorrectFolderPath -ChildPath $OutputFileName
+
+    Test-DTWProcessFileCompareOutputTestCorrect -InputBadPath $InputBadPath -OutputTestPath $OutputTestPath -OutputCorrectPath $OutputCorrectPath -Spacious:$IsSpacious
+  }
+
+  # loop through all files
+  Get-ChildItem -LiteralPath $SpaciousTestInputFolder | ForEach-Object {
+
+    $SourceFile = $_
+    $SourceFileName = $SourceFile.Name
+    $InputBadPath = $SourceFile.FullName
+
+    Test-SpaciousMode -IsSpacious $true
+    Test-SpaciousMode -IsSpacious $false
+  }
+}
+#endregion
 
 #region Output success/failure message or, if Quiet, return $true if all passed else $false
 if ($Quiet) {

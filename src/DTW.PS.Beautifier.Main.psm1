@@ -53,6 +53,9 @@ function Initialize-ProcessVariables {
     # indent text, value is overridden with param
     [string]$script:IndentText = ''
 
+    # determines whether to add a space between comma-separated values and between [type] and variable name
+    [string]$script:Spacious = $false
+
     # ouput clean script to standard output instead of source or destination path 
     [bool]$script:StandardOutput = $false
 
@@ -998,10 +1001,13 @@ function Test-AddSpaceFollowingToken {
     if ($SourceTokens[$TokenIndex].Type -eq 'NewLine') { return $false }
     #endregion
 
-    #region Don't write space after type Type if followed by GroupStart, Number, String, Type or Variable (for example [int]$Age or [int]"5")
-    # don't write at space after, for example [int]
-    if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex].Type -eq 'Type' -and ('GroupStart','Number','String','Type','Variable') -contains $SourceTokens[$TokenIndex + 1].Type) { return $false }
-    #endregion
+
+    if (-not $Spacious) {
+      #region Don't write space after type Type if followed by GroupStart, Number, String, Type or Variable (for example [int]$Age or [int]"5")
+      # don't write at space after, for example [int]
+      if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex].Type -eq 'Type' -and ('GroupStart','Number','String','Type','Variable') -contains $SourceTokens[$TokenIndex + 1].Type) { return $false }
+      #endregion
+    }
 
     #region Don't write space if next token is StatementSeparator (;) or NewLine
     if (($TokenIndex + 1) -lt $SourceTokens.Count) {
@@ -1052,8 +1058,13 @@ function Test-AddSpaceFollowingToken {
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex].Type -eq 'Variable' -and $SourceTokens[$TokenIndex + 1].Type -eq 'Operator' -and $SourceTokens[$TokenIndex + 1].Content -eq '[') { return $false }
     #endregion
 
-    #region Don't add space after Operators: , !
-    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and ($SourceTokens[$TokenIndex].Content -eq ',' -or $SourceTokens[$TokenIndex].Content -eq '!')) { return $false }
+    if (-not $Spacious) {
+      #region Don't add space after Operator: , (unless we're in Spacious mode)
+      if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and ($SourceTokens[$TokenIndex].Content -eq ',')) { return $false }
+    }
+
+    #region Don't add space after Operator: !
+    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '!') { return $false }
     #endregion
 
     #region Don't add space if next Operator token is: , ++ ; (except if it's after return keyword)
@@ -1146,6 +1157,9 @@ Path to the source PowerShell file
 .PARAMETER DestinationPath
 Path to write reformatted PowerShell.  If not specified rewrites file
 in place.
+.PARAMETER Spacious
+By default, Beautifier will prefer to remove spaces between comma-separated values and
+bewteen type and variable name (e.g. [string]$foo). Setting this flag flips this behaviour.
 .PARAMETER IndentType
 Type of indent to use: TwoSpaces, FourSpaces or Tabs
 .PARAMETER StandardOutput
@@ -1185,6 +1199,8 @@ function Edit-DTWBeautifyScript {
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [ValidateSet("TwoSpaces","FourSpaces","Tabs")]
     [string]$IndentType = "TwoSpaces",
+    [Parameter(Mandatory = $false)]
+    [switch]$Spacious = $false,
     [Alias('StdOut')]
     [switch]$StandardOutput,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
@@ -1233,6 +1249,10 @@ function Edit-DTWBeautifyScript {
     }
     # set script level variable
     $script:IndentText = $IndentText
+    #endregion
+
+    #region Set script-level variable for Spacious param
+    $script:Spacious = $Spacious
     #endregion
 
     #region Set script-level variable StandardOutput
