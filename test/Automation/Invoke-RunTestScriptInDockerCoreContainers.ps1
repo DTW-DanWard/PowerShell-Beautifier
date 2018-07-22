@@ -28,7 +28,7 @@ Folders and/or files on local machine to copy to container
 Path to the test script with any params to run test; path is relative to SourcePaths;
 see example for more details 
 .PARAMETER TestImageNames
-Docker image names to test against. Default values: 'ubuntu16.04', 'centos7'
+Docker image names to test against. Default values: 'ubuntu-16.04', 'centos-7'
 .PARAMETER DockerHubRepository
 Docker hub repository team/project name. Default value: "microsoft/powershell"
 .PARAMETER Quiet
@@ -41,7 +41,7 @@ be output and $true will not be returned.
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
   -SourcePaths 'C:\Path\To\PowerShell-Beautifier' `
   -TestFileAndParams 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet' `
-  -TestImageNames ('ubuntu16.04','centos7')
+  -TestImageNames ('ubuntu-16.04','centos-7')
 
 Key details here: 
  - C:\Path\To\PowerShell-Beautifier is a folder that gets copied to each container.
@@ -50,7 +50,7 @@ Key details here:
  - -Quiet is a parameter of Invoke-DTWBeautifyScriptTests.ps1; when specified if no
    errors occur (knock on wood) only $true is returned. This script looks for $true
    to know the test on the current container was successful.
- - Tests with two images: microsoft/powershell:ubuntu16.04 and microsoft/powershell:centos7
+ - Tests with two images: microsoft/powershell:ubuntu-16.04 and microsoft/powershell:centos-7
 
 .EXAMPLE
 .\Invoke-RunTestScriptInDockerCoreContainers.ps1 `
@@ -74,9 +74,9 @@ Key details here:
 # be used by others with *preferably* no code changes. See readme.md in same folder as this
 # script for more information about running this script.
 param(
-  [string[]]$SourcePaths = @((Split-Path -Path (Split-Path -Path (Split-Path -Path $MyInvocation.MyCommand.Path -Parent) -Parent) -Parent)),
+  [string[]]$SourcePaths = @((Split-Path -Path (Split-Path -Path (Split-Path -Path $PSCommandPath -Parent) -Parent) -Parent)),
   [string]$TestFileAndParams = 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet',
-  [string[]]$TestImageNames = @('ubuntu16.04','centos7'),
+  [string[]]$TestImageNames = @('ubuntu-16.04','centos-7'),
   [string]$DockerHubRepository = 'microsoft/powershell',
   [switch]$Quiet
 )
@@ -413,17 +413,22 @@ Returns Docker hub project image/tag info for $DockerHubRepository; format is PS
 function Get-DockerHubProjectImageInfo {
   process {
     # path to tags for Docker project
-    $ImageTagsUri = 'https://hub.docker.com/v2/repositories/' + $DockerHubRepository + '/tags'
-    try {
-      $Response = Invoke-WebRequest -Uri $ImageTagsUri
-      # Convert JSON response to PSObjects and return
-      (ConvertFrom-Json -InputObject $Response.Content).results
-    } catch {
-      Write-Output 'Error occurred calling Docker hub project tags url'
-      Write-Output "  Url:   $ImageTagsUri"
-      Write-Output "  Error: $($_.Exception.Message)"
-      exit
+    $ImageTagsUri = 'https://registry.hub.docker.com/v2/repositories/' + $DockerHubRepository + '/tags/?page='
+    [object[]]$Results = $null
+    $Continue = $true
+    $PageIndex = 1
+    while ($Continue) {
+      $Uri = $ImageTagsUri + $PageIndex
+      try {
+        $Response = Invoke-WebRequest -Uri $Uri
+        # Convert JSON response to PSObjects
+        $Results += (ConvertFrom-Json -InputObject $Response.Content).results
+        $PageIndex += 1
+      } catch {
+        $Continue = $false
+      }
     }
+    $Results
   }
 }
 #endregion
@@ -557,7 +562,7 @@ If container is not running exists script with error.
 .PARAMETER ContainerName
 Name of container to create.
 .EXAMPLE
-Get-DockerContainerTempFolderPath -ContainerName microsoft_powershell_ubuntu16.04
+Get-DockerContainerTempFolderPath -ContainerName microsoft_powershell_ubuntu-16.04
 /tmp
 #>
 function Get-DockerContainerTempFolderPath {
@@ -608,10 +613,10 @@ reports error and exits script.
 .EXAMPLE
 Get-DockerContainerStatus | Format-Table
 # Additional content to right not shown
-Command      CreatedAt                     ID           Image                             .......
--------      ---------                     --           -----                             .......
-"powershell" 2017-09-07 12:50:43 -0400 EDT 6b0f74711cda microsoft/powershell:centos7      .......
-"powershell" 2017-09-07 12:46:03 -0400 EDT 7bec8cacd139 microsoft/powershell:ubuntu16.04  .......
+Command      CreatedAt                     ID           Image                              .......
+-------      ---------                     --           -----                              .......
+"powershell" 2017-09-07 12:50:43 -0400 EDT 6b0f74711cda microsoft/powershell:centos-7      .......
+"powershell" 2017-09-07 12:46:03 -0400 EDT 7bec8cacd139 microsoft/powershell:ubuntu-16.04  .......
 #>
 function Get-DockerContainerStatus {
   process {
