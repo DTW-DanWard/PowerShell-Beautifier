@@ -3,7 +3,7 @@
 Automates PowerShell Core script testing on local Docker containers
 .DESCRIPTION
 Automates testing of PowerShell Core scripts on different operating systems by using
-local Docker containers running PowerShell Core images from the official Microsoft 
+local Docker containers running PowerShell Core images from the official Microsoft
 Docker hub. Performs these steps:
  - validates user-specified image names with local images and Docker hub versions;
  - for each valid Docker image name:
@@ -19,22 +19,22 @@ after that container is stopped; no additional containers are tested as it's lik
 the test script would just fail on those as well.
 
 PowerShell Core Docker container test script written by Dan Ward.
-See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com 
+See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com
 for more information.  I hope you enjoy using this utility!
 -Dan Ward
 .PARAMETER SourcePaths
 Folders and/or files on local machine to copy to container
 .PARAMETER TestFileAndParams
 Path to the test script with any params to run test; path is relative to SourcePaths;
-see example for more details 
+see example for more details
 .PARAMETER TestImageNames
 Docker image names to test against. Default values: 'ubuntu-16.04', 'centos-7'
 .PARAMETER DockerHubRepository
 Docker hub repository team/project name. Default value: "microsoft/powershell"
 .PARAMETER Quiet
-Run test with as little or no output possible.  If all tests are successful on all 
+Run test with as little or no output possible.  If all tests are successful on all
 containers, returns only $true.  However if a container is specified in TestImageNames
-that does not exist locally, that info will be output.  In addition, if an error 
+that does not exist locally, that info will be output.  In addition, if an error
 occurs running a Docker command or running the test script, that info will also
 be output and $true will not be returned.
 .EXAMPLE
@@ -43,7 +43,7 @@ be output and $true will not be returned.
   -TestFileAndParams 'PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1 -Quiet' `
   -TestImageNames ('ubuntu-16.04','centos-7')
 
-Key details here: 
+Key details here:
  - C:\Path\To\PowerShell-Beautifier is a folder that gets copied to each container.
  - The test script is located under that folder, so including that source folder name,
    the path is: PowerShell-Beautifier/test/Invoke-DTWBeautifyScriptTests.ps1
@@ -61,10 +61,10 @@ Key details here:
  - Multiple sources are being copied.
  - TestFile.ps1 is the test file to run here.
  - We are explicitly copying over TestFile.ps1, not a parent folder, so the script will
-   be located in the root of the temp folder in the container.  For that reason, there 
+   be located in the root of the temp folder in the container.  For that reason, there
    is no relative path to that script in the TestFileAndParams value.
  - That script could be anywhere, doesn't have to be in the root of c:\Code, so the
-   SourcePath value could be c:\Code\TestScripts\Blahblah\TestFile.ps1 but the 
+   SourcePath value could be c:\Code\TestScripts\Blahblah\TestFile.ps1 but the
    TestFileAndParams value would be the same.
 #>
 
@@ -159,7 +159,7 @@ function Out-ErrorInfo {
 Runs 'legacy' command-line commands with call operator &
 .DESCRIPTION
 Runs 'legacy' command-line commands with call operator & in try/catch
-block and tests both $? and $LastExitCode for errors. If error occurs, 
+block and tests both $? and $LastExitCode for errors. If error occurs,
 writes out using Out-ErrorInfo.
 .PARAMETER Command
 Command to run
@@ -244,7 +244,7 @@ function Confirm-ValidateUserImages {
     [object[]]$LocalDockerRepositoryImages = Get-DockerImageStatus
     # get list of local image names
     $LocalDockerRepositoryImageNames = $null
-    if ($LocalDockerRepositoryImages -ne $null -and $LocalDockerRepositoryImages.Count -gt 0) {
+    if ($null -ne $LocalDockerRepositoryImages -and $LocalDockerRepositoryImages.Count -gt 0) {
       $LocalDockerRepositoryImageNames = $LocalDockerRepositoryImages.Tag
     }
 
@@ -299,7 +299,7 @@ function Confirm-ValidateUserImages {
 .SYNOPSIS
 Confirms script param DockerHubRepository is <team name>/<project name>
 .DESCRIPTION
-Confirms script param DockerHubRepository is <team name>/<project name>, 
+Confirms script param DockerHubRepository is <team name>/<project name>,
 i.e. it should have only 1 slash in it 'in the middle' of other characters.
 If correct, does nothing, if incorrect writes info and exits script.
 #>
@@ -382,8 +382,8 @@ function Convert-ImageDataToHashTables {
       #region Container name information
       # when creating and using containers we want to use a specific container name; if you
       # don't specify a name, Docker will create the container with a random value. it's a lot
-      # easier to find/start/use/stop a container with a distinct name you know in advance. 
-      # so we'll base the name on the Docker standard RepositoryName:ImageName; unfortunately 
+      # easier to find/start/use/stop a container with a distinct name you know in advance.
+      # so we'll base the name on the Docker standard RepositoryName:ImageName; unfortunately
       # Docker's container name only allows certain characters (no slashes or colons) so we'll
       # add a sanitized ContainerName property to the image data in $ImageDataHashTable and use
       # that later in our code.
@@ -500,9 +500,9 @@ function Copy-FilesToDockerContainer {
       $Params = @('cp',$SourcePath,($ContainerName + ':' + $ContainerPath))
       # capture output, discard Results but return ErrorOccurred; don't exit on error
       $Results = $null
-      $Error = $false
-      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ErrorOccurred ([ref]$Error)
-      $ErrorOccurred.Value = $Error
+      $ErrorFound = $false
+      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ErrorOccurred ([ref]$ErrorFound)
+      $ErrorOccurred.Value = $ErrorFound
     }
   }
 }
@@ -515,7 +515,7 @@ function Copy-FilesToDockerContainer {
 Creates local container and starts it
 .DESCRIPTION
 Creates local container and starts it using Docker run (as opposed to explicit
-docker create and start commands). Uses image $ImageName from repository 
+docker create and start commands). Uses image $ImageName from repository
 $DockerHubRepository and creates with name $ContainerName.
 If error occurs, reports error and exits script.
 .PARAMETER ImageName
@@ -583,7 +583,7 @@ function Get-DockerContainerTempFolderPath {
     # this error handling shouldn't be needed; at this point in the script
     # the container name has been validated and started, but just in case
     # if no container exists or container not started, exit with error
-    if ($ContainerInfo -eq $null) {
+    if ($null -eq $ContainerInfo) {
       Write-Output "Container $ContainerName not found; exiting script"
       exit
     } elseif (!$ContainerInfo.Status.StartsWith('Up')) {
@@ -621,11 +621,11 @@ Command      CreatedAt                     ID           Image                   
 function Get-DockerContainerStatus {
   process {
     $Cmd = 'docker'
-    $Params = @('ps','-a','--format','{{json .}}')
+    $Params = @('ps','-a','--format','{{ json . }}')
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
-    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
+    if ($null -ne $Results -and $Results.ToString().Trim() -ne '') {
       $Results | ConvertFrom-Json
     } else {
       $null
@@ -659,7 +659,7 @@ function Get-DockerImageStatus {
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
     # parse results, converting from JSON to PSObjects
-    if ($Results -ne $null -and $Results.ToString().Trim() -ne '') {
+    if ($null -ne $Results -and $Results.ToString().Trim() -ne '') {
       $Results | ConvertFrom-Json
     } else {
       $null
@@ -747,9 +747,9 @@ function Invoke-TestScriptInDockerContainer {
     $Results = $null
     Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results)
     # my test script in $TestFileAndParams when used with the -Quiet param, is designed to
-    # return ONLY $true if everything worked. so if anything other than $true is returned assume 
+    # return ONLY $true if everything worked. so if anything other than $true is returned assume
     # error and report results
-    if ($Results -ne $null -and $Results -ne $true) {
+    if ($null -ne $Results -and $Results -ne $true) {
       $TestScriptSuccess.Value = $false
       Out-ErrorInfo -Command $Cmd -Parameters $Params -ErrorInfo $Results
     } else {
@@ -775,7 +775,7 @@ Start-DockerContainer MyContainer
 #>
 function Start-DockerContainer {
   #region Function parameters
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'Low')]
   param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
@@ -783,12 +783,14 @@ function Start-DockerContainer {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output '  Starting container' }
-    $Cmd = 'docker'
-    $Params = @('start',$ContainerName)
-    # capture output and discard; if error, Invoke-RunCommand exits script
-    $Results = $null
-    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    if ($PSCmdlet.ShouldProcess("ShouldProcess?")) {
+      if ($Quiet -eq $false) { Write-Output '  Starting container' }
+      $Cmd = 'docker'
+      $Params = @('start',$ContainerName)
+      # capture output and discard; if error, Invoke-RunCommand exits script
+      $Results = $null
+      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    }
   }
 }
 #endregion
@@ -808,7 +810,7 @@ Stop-DockerContainer MyContainer
 #>
 function Stop-DockerContainer {
   #region Function parameters
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'Low')]
   param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
@@ -816,12 +818,14 @@ function Stop-DockerContainer {
   )
   #endregion
   process {
-    if ($Quiet -eq $false) { Write-Output '  Stopping container' }
-    $Cmd = 'docker'
-    $Params = @('stop',$ContainerName)
-    # capture output and discard; if error, Invoke-RunCommand exits script
-    $Results = $null
-    Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    if ($PSCmdlet.ShouldProcess("ShouldProcess?")) {
+      if ($Quiet -eq $false) { Write-Output '  Stopping container' }
+      $Cmd = 'docker'
+      $Params = @('stop',$ContainerName)
+      # capture output and discard; if error, Invoke-RunCommand exits script
+      $Results = $null
+      Invoke-RunCommand -Command $Cmd -Parameters $Params -Results ([ref]$Results) -ExitOnError
+    }
   }
 }
 #endregion
@@ -833,7 +837,7 @@ function Stop-DockerContainer {
 
 # Programming note: to improve simplicity and readability, if any of the below functions
 # generates an error, info is written and the script is exited from within the function.
-# There are some exceptions: 
+# There are some exceptions:
 #   if an error occurs in Copy-FilesToDockerContainer, ErrorOccurred is set to $true and
 #     thus Invoke-TestScriptInDockerContainer will not be run (we can't execute the test
 #     if code didn't copy correctly)
@@ -874,10 +878,10 @@ if ($TestImageNames.Count -eq 0) {
 #region Validate script param TestImageNames
 # listing of valid, locally installed image names
 [string[]]$ValidTestImageTagNames = $null
-# check user supplied images names, if valid will be stored in ValidTestImageTagNames 
+# check user supplied images names, if valid will be stored in ValidTestImageTagNames
 Confirm-ValidateUserImages -DockerHubRepositoryImageData $HubImageDataHashTable -ValidImageNames ([ref]$ValidTestImageTagNames)
 # check if no valid image names - exit
-if ($ValidTestImageTagNames -eq $null) {
+if ($null -eq $ValidTestImageTagNames) {
   Write-Output 'No locally installed images to test against; exiting.'
   exit
 }
@@ -931,7 +935,7 @@ $ValidTestImageTagNames | ForEach-Object {
 
   # only run test if no error occurred during copying
   if ($ErrorOccurred -eq $false) {
-    # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams  
+    # run test script in container $ContainerName at path $ContainerTestFolderPath/$TestFileAndParams
     # if error, do not exit so container can be stopped next step
     $ContainerScriptPath = Join-Path -Path $ContainerTestFolderPath -ChildPath $TestFileAndParams
     Invoke-TestScriptInDockerContainer -ContainerName $ContainerName -ScriptPath $ContainerScriptPath -TestScriptSuccess ([ref]$TestScriptSuccess)
@@ -951,7 +955,7 @@ $ValidTestImageTagNames | ForEach-Object {
 
 
 #region If -Quiet and no errors occurred, return $true
-# if not -Quiet, don't return any value BUT if -Quiet and everything 
+# if not -Quiet, don't return any value BUT if -Quiet and everything
 # successful, return $true (best for automation)
 if ($Quiet -eq $true -and $TestScriptSuccess -eq $true) { $TestScriptSuccess }
 #endregion

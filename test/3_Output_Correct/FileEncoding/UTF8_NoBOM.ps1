@@ -1,2 +1,2 @@
-﻿$Name = "ωϘГĹƊ"
-Write-Host "Hello, $Name"
+﻿$Name = "ωωω"
+"Hello, $Name"

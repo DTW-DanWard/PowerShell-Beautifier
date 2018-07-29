@@ -2,12 +2,12 @@
 PowerShell script beautifier by Dan Ward.
 
 IMPORTANT NOTE: this utility rewrites your script in place!  Before running this
-on your script make sure you back up your script or commit any changes you have 
+on your script make sure you back up your script or commit any changes you have
 or run this on a copy of your script.
 
 This file contains functions for populating the ValidNames hashtables.
 
-See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com 
+See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com
 for more information.  I hope you enjoy using this utility!
 -Dan Ward
 #>
@@ -25,16 +25,18 @@ Populates the values of the lookup tables from cache file.
 #>
 function Set-LookupTableValuesFromFile {
   #region Function parameters
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'Low')]
   param()
   #endregion
   process {
-    $CacheData = Import-Clixml -Path $ValidValuesCacheFilePath
-    $MyInvocation.MyCommand.Module.PrivateData.ValidCommandNames = $CacheData.ValidCommandNames
-    $MyInvocation.MyCommand.Module.PrivateData.ValidCommandParameterNames = $CacheData.ValidCommandParameterNames
-    $MyInvocation.MyCommand.Module.PrivateData.ValidAttributeNames = $CacheData.ValidAttributeNames
-    $MyInvocation.MyCommand.Module.PrivateData.ValidMemberNames = $CacheData.ValidMemberNames
-    $MyInvocation.MyCommand.Module.PrivateData.ValidVariableNames = $CacheData.ValidVariableNames
+    if ($PSCmdlet.ShouldProcess("ShouldProcess?")) {
+      $CacheData = Import-Clixml -Path $ValidValuesCacheFilePath
+      $MyInvocation.MyCommand.Module.PrivateData.ValidCommandNames = $CacheData.ValidCommandNames
+      $MyInvocation.MyCommand.Module.PrivateData.ValidCommandParameterNames = $CacheData.ValidCommandParameterNames
+      $MyInvocation.MyCommand.Module.PrivateData.ValidAttributeNames = $CacheData.ValidAttributeNames
+      $MyInvocation.MyCommand.Module.PrivateData.ValidMemberNames = $CacheData.ValidMemberNames
+      $MyInvocation.MyCommand.Module.PrivateData.ValidVariableNames = $CacheData.ValidVariableNames
+    }
   }
 }
 #endregion
@@ -68,12 +70,14 @@ Gets lookup values currently in memory and saves cache file.
 #>
 function Update-DTWRegenerateLookupTableValuesFile {
   #region Function parameters
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'Low')]
   param()
   #endregion
   process {
-    Set-LookupTableValuesFromMemory
-    Save-LookupTableValuesToFile
+    if ($PSCmdlet.ShouldProcess("ShouldProcess?")) {
+      Set-LookupTableValuesFromMemory
+      Save-LookupTableValuesToFile
+    }
   }
 }
 Export-ModuleMember -Function Update-DTWRegenerateLookupTableValuesFile
@@ -89,15 +93,17 @@ Populates the values of the lookup tables from values currently in memory.
 #>
 function Set-LookupTableValuesFromMemory {
   #region Function parameters
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'Low')]
   param()
   #endregion
   process {
-    $MyInvocation.MyCommand.Module.PrivateData['ValidCommandNames'] = Initialize-ValidCommandNames
-    $MyInvocation.MyCommand.Module.PrivateData['ValidCommandParameterNames'] = Initialize-ValidCommandParameterNames
-    $MyInvocation.MyCommand.Module.PrivateData['ValidAttributeNames'] = Initialize-ValidAttributeNames
-    $MyInvocation.MyCommand.Module.PrivateData['ValidMemberNames'] = Initialize-ValidMemberNames
-    $MyInvocation.MyCommand.Module.PrivateData['ValidVariableNames'] = Initialize-ValidVariableNames
+    if ($PSCmdlet.ShouldProcess("ShouldProcess?")) {
+      $MyInvocation.MyCommand.Module.PrivateData['ValidCommandNames'] = Initialize-ValidCommandNames
+      $MyInvocation.MyCommand.Module.PrivateData['ValidCommandParameterNames'] = Initialize-ValidCommandParameterNames
+      $MyInvocation.MyCommand.Module.PrivateData['ValidAttributeNames'] = Initialize-ValidAttributeNames
+      $MyInvocation.MyCommand.Module.PrivateData['ValidMemberNames'] = Initialize-ValidMemberNames
+      $MyInvocation.MyCommand.Module.PrivateData['ValidVariableNames'] = Initialize-ValidVariableNames
+    }
   }
 }
 #endregion
@@ -116,20 +122,21 @@ When you look up an alias (by accessing the hashtable by alias name for the key,
 it returns the command name.  For functions and cmdlet, it returns the same value
 BUT the value is the name with the correct case but the lookup is case-insensitive.
 Lastly, when the aliases -> are gathered, each alias definition is checked to make
-sure it isn't another alias but an actual cmdlet or function name (in the event 
+sure it isn't another alias but an actual cmdlet or function name (in the event
 that you have an alias that points to an alias and so on).
 #>
 function Initialize-ValidCommandNames {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([hashtable])]
   param()
   #endregion
   process {
     [hashtable]$CommandNames = @{}
-    # get list of all cmdlets and functions in memory, however we want to sort the 
+    # get list of all cmdlets and functions in memory, however we want to sort the
     # commands by CommandType Descending so Cmdlets come first.  The reason we want
     # Cmdlet to come first is so they get recorded first; in the event that you have
-    # a proxy function (function with same name as a cmdlet), you want to use the 
+    # a proxy function (function with same name as a cmdlet), you want to use the
     # value of the Cmdlet name as the lookup value, not the proxy function.
     Get-Command -CommandType Cmdlet,Function | Sort-Object -Property CommandType -Descending | ForEach-Object {
       # only add if doesn't already exist (might not if proxy functions exist)
@@ -168,6 +175,7 @@ someone's script.
 function Get-CoreSafeAliases {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([hashtable])]
   param()
   #endregion
   process {
@@ -296,15 +304,16 @@ function Get-CoreSafeAliases {
 .SYNOPSIS
 Gets lookup hashtable of existing parameter names on cmdlets and functions.
 .DESCRIPTION
-Gets lookup hashtable of existing parameter names on cmdlets and functions. 
-Specifically it gets a unique list of the parameter names on every cmdlet and 
-function name and creates a hashtable entry with the name as both the key and 
-value. When you look up a value, it essentially returns the same value BUT 
+Gets lookup hashtable of existing parameter names on cmdlets and functions.
+Specifically it gets a unique list of the parameter names on every cmdlet and
+function name and creates a hashtable entry with the name as both the key and
+value. When you look up a value, it essentially returns the same value BUT
 the value is the name with the correct case but the lookup is case-insensitive.
 #>
 function Initialize-ValidCommandParameterNames {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([hashtable])]
   param()
   #endregion
   process {
@@ -315,8 +324,8 @@ function Initialize-ValidCommandParameterNames {
     # definition so we can match the actual value but regardless we will need this fallback
     # mechanism in case the cmdlet/function in question isn't loaded into memory.
 
-    # All that said: I have see casing inconsistencies across various modules 
-    # (NoNewLine vs. NoNewline, Force vs. force, etc.) so we will load the 
+    # All that said: I have see casing inconsistencies across various modules
+    # (NoNewLine vs. NoNewline, Force vs. force, etc.) so we will load the
     # Microsoft.PowerShell parameter names first as we consider these the most important
     # ones.
     #endregion
@@ -354,19 +363,20 @@ function Initialize-ValidCommandParameterNames {
 Gets lookup hashtable of known valid attribute names.
 .DESCRIPTION
 Gets lookup hashtable of known valid attribute names.  Attributes
-as created by the PSParser Tokenize method) include function parameter 
+as created by the PSParser Tokenize method) include function parameter
 attributes.
 #>
 function Initialize-ValidAttributeNames {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([hashtable])]
   param()
   #endregion
   process {
     [hashtable]$AttributeNames = @{
       #region Values for parameter attributes
       <#
-      Value below taken from: 
+      Value below taken from:
         Windows PowerShell Language Specification Version 3.0.docx
         Chapter 12 Attributes
       Not sure how to get these value programmatically; is there a type upon
@@ -409,21 +419,22 @@ function Initialize-ValidAttributeNames {
 Gets lookup hashtable of known valid member names.
 .DESCRIPTION
 Gets lookup hashtable of known valid member names.  Members (Member tokens
-as created by the PSParser Tokenize method) include function parameter 
-properties as well as methods on objects.  
+as created by the PSParser Tokenize method) include function parameter
+properties as well as methods on objects.
 #>
 function Initialize-ValidMemberNames {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([hashtable])]
   param()
   #endregion
   process {
     # The code below seeds the MemberNames hashtable with correct values (from a
     # spelling and case perspective) from common types used in PowerShell scripts.
     # It's likely that more types need to be added - please add what you feel is missing!
-    # It would be nice to have many, many types or to programmatically search all types 
-    # and grab all their values but that would require a long start-up time.  Perhaps in a later v1 
-    # iteration of the beautifier script (when these values are cached to a text file and 
+    # It would be nice to have many, many types or to programmatically search all types
+    # and grab all their values but that would require a long start-up time.  Perhaps in a later v1
+    # iteration of the beautifier script (when these values are cached to a text file and
     # quickly read into memory rather than being programmatically looked up each time
     # the beautifier is first used) then it can iterate through more/all types.
     # A better longer term solution is to actually determine the type and the properties
@@ -455,18 +466,19 @@ function Initialize-ValidMemberNames {
 .SYNOPSIS
 Gets lookup hashtable of known valid variables names.
 .DESCRIPTION
-Gets lookup hashtable of known valid variable names with the correct case.  
+Gets lookup hashtable of known valid variable names with the correct case.
 It is seeded with some well known values (true, false, etc.) but will grow
-as the parser walks through the script, adding user variables as they are 
+as the parser walks through the script, adding user variables as they are
 encountered.
 #>
 function Initialize-ValidVariableNames {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([hashtable])]
   param()
   #endregion
   process {
-    # This list could be updated with other known values.  However we won't 
+    # This list could be updated with other known values.  However we won't
     # seed the values from the global variable: drive as those values are probably
     # ad-hoc values from the user shell and less-likely to have correct casing.
     [hashtable]$VariableNames = @{
@@ -494,7 +506,7 @@ function Invoke-Main {
     [string]$script:ValidValuesCacheFilePath = Join-Path -Path $PSScriptRoot -ChildPath "DTW.PS.BeautifierValidValuesCache.txt"
 
     # if cache file exists, load cache values from file
-    # else generate from memory then save those values to file 
+    # else generate from memory then save those values to file
     # side note: calling $MyInvocation.MyCommand.Module.PrivateData only works from within a function
     # so we need to have a 'main' function
     if ($true -eq (Test-Path -Path $ValidValuesCacheFilePath)) {

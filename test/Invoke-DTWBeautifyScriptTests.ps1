@@ -10,10 +10,10 @@ Runs PowerShell beautifier testing process:
 
 To use a diff utility besides Compare-Object, specify a valid diff utility EXE
 path in the variable $DTW_PS_Beautifier_DiffViewer.  You could specify this in
-your $profile (if you run this a lot) or specify it once in the shell before 
+your $profile (if you run this a lot) or specify it once in the shell before
 running the test script.
 
-There are a lot more details; see script source and documentation on Github for 
+There are a lot more details; see script source and documentation on Github for
 more information.
 .PARAMETER SkipModuleReload
 Skips reloading the PowerShell-Beautifier module.  If you aren't making beautifier
@@ -47,7 +47,7 @@ There are 3 folders to know about:
 1_Input_Bad - in the repo.  Has example of files with bad formatting to be fixed.
 2_Output_Test - NOT in repo, created by test process.  Stores files from 1_Input_Bad
   that have been processed by beautifier.
-3_Output_Correct - in the repo.  Contains the files found in 1_Input_Bad that have the 
+3_Output_Correct - in the repo.  Contains the files found in 1_Input_Bad that have the
   correct formatting (hand-edited).
 
 Here is how this test script works:
@@ -72,16 +72,16 @@ existing output correct files in folder 3_Output_Correct\Whitespace:
 ONE OTHER THING TO KNOW:
 
 If a result file in 2_Output_Test does not match the corresponding file in folder
-3_Output_Correct, a diff is launched to show the difference to the user.  If you 
+3_Output_Correct, a diff is launched to show the difference to the user.  If you
 don't make any changes, the test script will use the PowerShell cmdlet Compare-Object
-and output the results in the console.  However, if you want to use a different 
+and output the results in the console.  However, if you want to use a different
 diff utility, especially a visual diff tool like ExamDiff, you can enable this by
 setting a variable named $DTW_PS_Beautifier_DiffViewer to the path of the utility, i.e.
 
 $DTW_PS_Beautifier_DiffViewer = 'C:\Program Files\ExamDiff Pro\ExamDiff.exe'
 
-PLEASE DON'T set this value directly within your copy of the test script in the 
-event you ever want to push changes back to the project.  (I'm sure others will have 
+PLEASE DON'T set this value directly within your copy of the test script in the
+event you ever want to push changes back to the project.  (I'm sure others will have
 different utilities they prefer.)  So instead you can set that variable
 $DTW_PS_Beautifier_DiffViewer in your $profile or in your shell right before running
 the test script.
@@ -95,13 +95,13 @@ the test script.
 Launches diff for 2 files.  Either uses Compare-Object or diff editor
 if variable defined and valid.
 .DESCRIPTION
-Launches diff for 2 files.  If the user has specified a file system path for the 
+Launches diff for 2 files.  If the user has specified a file system path for the
 variable DTW_PS_Beautifier_DiffViewer, this is assumed to be an EXE and that is
 used.  If that hasn't been defined, diffs with Compare-Object.
 
 Rather than edit this file to fill in a path for variable
-$DTW_PS_Beautifier_DiffViewer that is specific to your machine (it will be 
-different for different users), this can be specified in your profile or in the 
+$DTW_PS_Beautifier_DiffViewer that is specific to your machine (it will be
+different for different users), this can be specified in your profile or in the
 shell right before running this test script.
 .PARAMETER Path1
 Path to first file.
@@ -180,7 +180,7 @@ function Invoke-DTWFileDiff {
 Runs a full beautify test for a single file.
 .DESCRIPTION
 Runs a full beautify test for a single file.  Takes the file $InputBadPath,
-runs through Edit-DTWBeautifyScript saving result to $OutputTestPath.  Then 
+runs through Edit-DTWBeautifyScript saving result to $OutputTestPath.  Then
 compares files contents at $OutputTestPath and $OutputCorrectPath; if not the
 same, launches diff.
 .PARAMETER InputBadPath
@@ -250,7 +250,7 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
 
     try {
       #region Specify parameters for Edit-DTWBeautifyScript call
-      # note: we are specifying Unix standard LF as newline; for any machine pulling the test files 
+      # note: we are specifying Unix standard LF as newline; for any machine pulling the test files
       # from git, the line endings will most likely be LF and not Windows CRLF
       # regardless, the file comparison functionality will ignore the LF / CRLF difference
       [hashtable]$Params = @{
@@ -259,7 +259,7 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
         NewLine = "LF"
       }
       # if $IndentText passed, add that to params
-      if ($IndentText -ne $null) {
+      if ($null -ne $IndentText) {
         $Params.IndentType = $IndentText
       }
       # finally: take the source file, run through beautifier and output in test folder
@@ -286,8 +286,6 @@ function Test-DTWProcessFileCompareOutputTestCorrect {
 
 
 #region Get current script name and parent folder
-# name of current script
-[string]$ScriptName = Split-Path $MyInvocation.MyCommand.Path -Leaf
 # path of current script parent folder
 [string]$ScriptFolder = Split-Path $MyInvocation.MyCommand.Path -Parent
 #endregion
@@ -349,8 +347,8 @@ if ($false -eq (Test-Path -Path $RootOutputTestFolderPath)) {
 [bool]$AllTestsPassed = $true
 
 #region Main folder processing
-# $IndentationTestFileName is the name of the test file specifically used for 
-# testing different indentation i.e. spaces vs. tabs; it will be processed 
+# $IndentationTestFileName is the name of the test file specifically used for
+# testing different indentation i.e. spaces vs. tabs; it will be processed
 # differently than the normal tests - which will use the default indentation
 # of 2 spaces - so identifying test file here in order to skip it in normal processing
 # FYI, this file is located in the Whitespace folder
@@ -358,7 +356,7 @@ $IndentationTestFileName = 'Indentation.ps1'
 
 # test folders to process - list all of them here
 [string[]]$TestFolders = 'Case','CompleteFiles','FileEncoding','Rename','Whitespace'
-# this structure was originally designed to test just one or two folders at a time 
+# this structure was originally designed to test just one or two folders at a time
 # (via script parameters); turns out running all scripts in all test folders is pretty
 # darn fast so there's no real need for the granularity; let's just run them all
 # however, if you really want you can easily override which folders by uncommenting

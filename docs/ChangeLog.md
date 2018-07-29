@@ -50,3 +50,5 @@ Numerous fixes from user @m-kostrzewa - many thanks!
 * Support for dot-sourcing file paths in quotes
 * Add space after redirection operator if followed by additional text
 * Separate return statements followed by comma (when returning an array)
+## v 1.2.5
+Fixed all errors in PSScriptAnalyzer

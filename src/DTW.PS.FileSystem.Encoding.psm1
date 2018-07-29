@@ -2,13 +2,13 @@
 PowerShell script beautifier by Dan Ward.
 
 IMPORTANT NOTE: this utility rewrites your script in place!  Before running this
-on your script make sure you back up your script or commit any changes you have 
+on your script make sure you back up your script or commit any changes you have
 or run this on a copy of your script.
 
 This file contains functions for detecting / handling / modify file encodings.  It will
 get moved to its own project at some point.
 
-See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com 
+See https://github.com/DTW-DanWard/PowerShell-Beautifier or http://dtwconsulting.com
 for more information.  I hope you enjoy using this utility!
 -Dan Ward
 #>
@@ -19,6 +19,7 @@ Set-StrictMode -Version 2
 #region Functions: Add-DTWFileEncodingByteOrderMarker, Get-DTWFileEncoding
 
 #region Function: Add-DTWFileEncodingByteOrderMarker
+
 <#
 .SYNOPSIS
 Adds a byte order marker file encoding to a file
@@ -62,16 +63,16 @@ Export-ModuleMember -Function Add-DTWFileEncodingByteOrderMarker
 .SYNOPSIS
 Returns the encoding type of the file
 .DESCRIPTION
-Returns the encoding type of the file.  It first attempts to determine the 
+Returns the encoding type of the file.  It first attempts to determine the
 encoding by detecting the Byte Order Marker using Lee Holmes' algorithm
 (http://poshcode.org/2153).  However, if the file does not have a BOM
 it makes an attempt to determine the encoding by analyzing the file content
 (does it 'appear' to be UNICODE, does it have characters outside the ASCII
-range, etc.).  If it can't tell based on the content analyzed, then 
-it assumes it's ASCII.  Note: it does not correctly detect UTF32 BE or LE 
+range, etc.).  If it can't tell based on the content analyzed, then
+it assumes it's ASCII.  Note: it does not correctly detect UTF32 BE or LE
 if no BOM is present.
 
-If your file doesn't have a BOM and 'doesn't appear to be Unicode' (based on 
+If your file doesn't have a BOM and 'doesn't appear to be Unicode' (based on
 my algorithm*) but contains non-ASCII characters *after* index ByteCountToCheck,
 the file will be incorrectly identified as ASCII.  So put a BOM in there, would ya!
 
@@ -79,7 +80,7 @@ For more information and sample encoding files see:
 http://danspowershellstuff.blogspot.com/2012/02/get-file-encoding-even-if-no-byte-order.html
 And please give me any tips you have about improving the detection algorithm.
 
-*For a full description of the algorithm used to analyze non-BOM files, 
+*For a full description of the algorithm used to analyze non-BOM files,
 see "Determine if Unicode/UTF8 with no BOM algorithm description".
 .PARAMETER Path
 Path to file
@@ -200,10 +201,10 @@ function Get-DTWFileEncoding {
        second byte in each group, depending on Endian type.
        My algorithm uses the existence of these 0s:
         - look at the first ByteCountToCheck bytes of the file
-        - if any character is greater than 127, note it (if any are found, the 
+        - if any character is greater than 127, note it (if any are found, the
           file is at least UTF8)
         - count the number of 0s found (in every other character)
-          - if a certain percentage (compared to total # of characters) are 
+          - if a certain percentage (compared to total # of characters) are
             null/value 0, then assume it is Unicode
           - if the percentage of 0s is less than we identify as a Unicode
             file (less than PercentageMatchUnicode) BUT a character greater
@@ -214,7 +215,7 @@ function Get-DTWFileEncoding {
        and you don't want it's encoding to be confused just put the BOM in
        there for pete's sake.
        Note: if you have a huge amount of text at the beginning of your file which
-       is not code and is not single-byte, this algorithm may fail.  Again, put a 
+       is not code and is not single-byte, this algorithm may fail.  Again, put a
        BOM in.
     #>
     #endregion
@@ -284,6 +285,7 @@ Export-ModuleMember -Function Get-DTWFileEncoding
 #region Functions: Get-DTWFileEncodingSystemProviderNameFromTypeName, Get-DTWFileEncodingTypeFromName
 
 #region Function: Get-DTWFileEncodingSystemProviderNameFromTypeName
+
 <#
 .SYNOPSIS
 Returns file system cmdlet provider encoding name given common encoding name.
@@ -292,9 +294,9 @@ When passed a encoding name, such as the encoding type name or BodyName or WebNa
 etc. returns the valid Microsoft.PowerShell.Commands.FileSystemCmdletProviderEncoding.
 In other words, when you need to call Get-Content and pass in a valid Encoding value
 but the values you have don't exactly match, use this function to get the right value.
-Warning - if you pass in the type itself / type name of a Big Endian UTF 16 or 32 
-type, the function will return the Little Endian equivalent.  You need to specify a 
-value that's more specific, say the BodyName, EncodingName, HeaderName or WebName 
+Warning - if you pass in the type itself / type name of a Big Endian UTF 16 or 32
+type, the function will return the Little Endian equivalent.  You need to specify a
+value that's more specific, say the BodyName, EncodingName, HeaderName or WebName
 values off the type itself.
 If no match found throws error - all valid names are in parameter set.
 Also, sorry for the long function name.
@@ -370,6 +372,7 @@ Export-ModuleMember -Function Get-DTWFileEncodingSystemProviderNameFromTypeName
 
 
 #region Function: Get-DTWFileEncodingTypeFromName
+
 <#
 .SYNOPSIS
 Returns System.Text file encoding given name
@@ -432,8 +435,8 @@ Export-ModuleMember -Function Get-DTWFileEncodingTypeFromName
 .SYNOPSIS
 Compares two files, returns $true if same, $false otherwise
 .DESCRIPTION
-Compares two files, returns $true if same, $false otherwise. If both files have a 
-BOM, uses Compare-DTWFilesIncludingBOM. If one file has a BOM and the other does 
+Compares two files, returns $true if same, $false otherwise. If both files have a
+BOM, uses Compare-DTWFilesIncludingBOM. If one file has a BOM and the other does
 not, uses: Compare-DTWFilesIgnoringBOM.
 Line ending differences (Windows-style vs. Unix-style) are ignored during compare.
 .PARAMETER Path1
@@ -521,6 +524,7 @@ $true  # files have same contents in this case
 function Compare-DTWFilesIncludingBOM {
   #region Function parameters
   [CmdletBinding()]
+  [OutputType([bool])]
   param(
     [Parameter(Mandatory = $true,ValueFromPipeline = $false)]
     [ValidateNotNullOrEmpty()]
@@ -570,7 +574,7 @@ function Compare-DTWFilesIncludingBOM {
     [string]$File1SourceString = [System.IO.File]::ReadAllText($Path1)
     [string]$File2SourceString = [System.IO.File]::ReadAllText($Path2)
     # replace any windows line endings with Unix line endings so doesn't affect comparison;
-    # depending on a user's git settings, the test files may or may not have windows line 
+    # depending on a user's git settings, the test files may or may not have windows line
     # endings; because we need to compare the files at a binary level, safest thing to do
     # is to replace windows line endings with Unix
     $File1SourceString = $File1SourceString -replace "`r`n","`n"
@@ -662,7 +666,7 @@ function Compare-DTWFilesIgnoringBOM {
     $File1Content = Get-Content -Path $Path1 -Encoding (Get-DTWFileEncodingSystemProviderNameFromTypeName -Name ((Get-DTWFileEncoding $Path1).EncodingName))
     $File2Content = Get-Content -Path $Path2 -Encoding (Get-DTWFileEncodingSystemProviderNameFromTypeName -Name ((Get-DTWFileEncoding $Path2).EncodingName))
     # replace any windows line endings with Unix line endings so doesn't affect comparison;
-    # depending on a user's git settings, the test files may or may not have windows line 
+    # depending on a user's git settings, the test files may or may not have windows line
     # endings; because we need to compare the files at a binary level, safest thing to do
     # is to replace windows line endings with Unix
     $File1Content = $File1Content -replace "`r`n","`n"
