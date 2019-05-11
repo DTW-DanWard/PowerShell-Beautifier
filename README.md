@@ -60,7 +60,7 @@ Install-Module -Name PowerShell-Beautifier
 ```
 2. Import the module.  This takes a few seconds the first time but is fast thereafter.
 ```
-Import-Module PowerShell-Beautifier.psd1
+Import-Module .\PowerShell-Beautifier.psd1
 ```
 3. Confirm it is loaded correctly:
 ```
