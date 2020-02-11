@@ -56,6 +56,9 @@ function Initialize-ProcessVariables {
     # space after comma, value is overridden with param
     [bool]$script:SpaceAfterComma = $false
 
+    # function for tweaking space behavior, overridden with param
+    [ScriptBlock]$script:AddSpaceAfter = $null
+
     # ouput clean script to standard output instead of source or destination path
     [bool]$script:StandardOutput = $false
 
@@ -1003,6 +1006,14 @@ function Test-AddSpaceFollowingToken {
     # all the way through rules, return true.  To speed up this functioning, the rules that are
     # most likely to be useful are at the top.
 
+    # User-defined custom processing goes first
+    if ($script:AddSpaceAfter) {
+      $OverrideValue = $script:AddSpaceAfter.InvokeReturnAsIs($SourceTokens, $TokenIndex)
+      if ($OverrideValue -ne $null) {
+        return $OverrideValue
+      }
+    }
+
     #region Don't write space after type NewLine
     if ($SourceTokens[$TokenIndex].Type -eq 'NewLine') { return $false }
     #endregion
@@ -1163,6 +1174,13 @@ in place.
 Type of indent to use: TwoSpaces, FourSpaces or Tabs
 .PARAMETER SpaceAfterComma
 Whether to add a space after a comma (,). Default = $false.
+.PARAMETER AddSpaceAfter
+A ScriptBlock with custom code determining whether a space gets added after
+a token. If specified, gets called for each token with the list of tokens
+and current token index as arguments. It can either return $null in which
+case the standard logic for adding spaces is used for the token, or it can
+specify whether a space gets added or not by returning $true of $false and
+the standard logic is then skipped.
 .PARAMETER StandardOutput
 If specified, cleaned script is only written to stdout, not any file, and
 any errors will be written to stderror using concise format (not Write-Error).
@@ -1202,6 +1220,9 @@ function Edit-DTWBeautifyScript {
     [string]$IndentType = "TwoSpaces",
     [switch]
     $SpaceAfterComma,
+    [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
+    [ScriptBlock]
+    $AddSpaceAfter = $null,
     [Alias('StdOut')]
     [switch]$StandardOutput,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
@@ -1254,6 +1275,7 @@ function Edit-DTWBeautifyScript {
 
     #region Other parameters
     $script:SpaceAfterComma = $SpaceAfterComma
+    $script:AddSpaceAfter = $AddSpaceAfter
 
     #region Set script-level variable StandardOutput
     $script:StandardOutput = $StandardOutput
