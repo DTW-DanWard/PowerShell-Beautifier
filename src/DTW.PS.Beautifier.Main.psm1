@@ -1332,6 +1332,7 @@ function Edit-DTWBeautifyScript {
     # if StandardOutput specified, $script:SourceTokens is set to $null
 
     if ($null -ne $Err -and $Err.Count -gt 0 -or $null -eq $script:SourceTokens) {
+      Remove-Item -Path $DestinationPathTemp -Force
       Initialize-ProcessVariables
       return
     }
