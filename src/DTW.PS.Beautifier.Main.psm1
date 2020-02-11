@@ -53,6 +53,9 @@ function Initialize-ProcessVariables {
     # indent text, value is overridden with param
     [string]$script:IndentText = ''
 
+    # space after comma, value is overridden with param
+    [bool]$script:SpaceAfterComma = $false
+
     # ouput clean script to standard output instead of source or destination path
     [bool]$script:StandardOutput = $false
 
@@ -1058,8 +1061,12 @@ function Test-AddSpaceFollowingToken {
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex].Type -eq 'Variable' -and $SourceTokens[$TokenIndex + 1].Type -eq 'Operator' -and $SourceTokens[$TokenIndex + 1].Content -eq '[') { return $false }
     #endregion
 
-    #region Don't add space after Operators: , !
-    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and ($SourceTokens[$TokenIndex].Content -eq ',' -or $SourceTokens[$TokenIndex].Content -eq '!')) { return $false }
+    #region Space after Operators: ,
+    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and ($SourceTokens[$TokenIndex].Content -eq ',')) { return $script:SpaceAfterComma }
+    #endregion
+
+    #region Don't add space after Operators: !
+    if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and ($SourceTokens[$TokenIndex].Content -eq '!')) { return $false }
     #endregion
 
     #region Don't add space if next Operator token is: , ++ ; (except if it's after return keyword)
@@ -1154,6 +1161,8 @@ Path to write reformatted PowerShell.  If not specified rewrites file
 in place.
 .PARAMETER IndentType
 Type of indent to use: TwoSpaces, FourSpaces or Tabs
+.PARAMETER SpaceAfterComma
+Whether to add a space after a comma (,). Default = $false.
 .PARAMETER StandardOutput
 If specified, cleaned script is only written to stdout, not any file, and
 any errors will be written to stderror using concise format (not Write-Error).
@@ -1191,6 +1200,8 @@ function Edit-DTWBeautifyScript {
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [ValidateSet("TwoSpaces","FourSpaces","Tabs")]
     [string]$IndentType = "TwoSpaces",
+    [switch]
+    $SpaceAfterComma,
     [Alias('StdOut')]
     [switch]$StandardOutput,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
@@ -1240,6 +1251,9 @@ function Edit-DTWBeautifyScript {
     # set script level variable
     $script:IndentText = $IndentText
     #endregion
+
+    #region Other parameters
+    $script:SpaceAfterComma = $SpaceAfterComma
 
     #region Set script-level variable StandardOutput
     $script:StandardOutput = $StandardOutput
