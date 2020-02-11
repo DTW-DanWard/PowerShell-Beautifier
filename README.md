@@ -78,7 +78,7 @@ SYNOPSIS
 
 SYNTAX
     Edit-DTWBeautifyScript [-SourcePath] <String> [[-DestinationPath] <String>] [[-IndentType] <String>]
-    [-StandardOutput] [[-NewLine] <String>] [<CommonParameters>]
+    [-SpaceAfterComma] [-TreatAllgroupsEqual] [[-AddSpaceAfter] <ScriptBlock>] [-StandardOutput] [[-NewLine] <String>]
     [<CommonParameters>]
 
 ...more text...
