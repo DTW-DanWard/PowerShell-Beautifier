@@ -56,6 +56,9 @@ function Initialize-ProcessVariables {
     # space after comma, value is overridden with param
     [bool]$script:SpaceAfterComma = $false
 
+    # no spaces in any groups, value is overridden with param
+    [bool]$script:TreatAllGroupsEqual = $false
+
     # function for tweaking space behavior, overridden with param
     [ScriptBlock]$script:AddSpaceAfter = $null
 
@@ -1051,6 +1054,13 @@ function Test-AddSpaceFollowingToken {
     if ($SourceTokens[$TokenIndex].Type -eq 'Operator' -and $SourceTokens[$TokenIndex].Content -eq '::') { return $false }
     #endregion
 
+    #region Don't write space inside any groups
+    if ($script:TreatAllGroupsEqual) {
+      if ($SourceTokens[$TokenIndex].Type -eq 'GroupStart') { return $false }
+      if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex + 1].Type -eq 'GroupEnd') { return $false }
+    }
+    #endregion
+
     #region Don't write space inside ( ) or $( ) groups
     if ($SourceTokens[$TokenIndex].Type -eq 'GroupStart' -and ($SourceTokens[$TokenIndex].Content -eq '(' -or $SourceTokens[$TokenIndex].Content -eq '$(')) { return $false }
     if ((($TokenIndex + 1) -lt $SourceTokens.Count) -and $SourceTokens[$TokenIndex + 1].Type -eq 'GroupEnd' -and $SourceTokens[$TokenIndex + 1].Content -eq ')') { return $false }
@@ -1174,6 +1184,9 @@ in place.
 Type of indent to use: TwoSpaces, FourSpaces or Tabs
 .PARAMETER SpaceAfterComma
 Whether to add a space after a comma (,). Default = $false.
+.PARAMETER TreatAllGroupsEqual
+Whether to treat all groups (() {} @() @{}) the same, and not add spaces in between them.
+Default = $false = only remove spaces in () and @() groups.
 .PARAMETER AddSpaceAfter
 A ScriptBlock with custom code determining whether a space gets added after
 a token. If specified, gets called for each token with the list of tokens
@@ -1220,6 +1233,8 @@ function Edit-DTWBeautifyScript {
     [string]$IndentType = "TwoSpaces",
     [switch]
     $SpaceAfterComma,
+    [switch]
+    $TreatAllGroupsEqual,
     [Parameter(Mandatory = $false,ValueFromPipeline = $false)]
     [ScriptBlock]
     $AddSpaceAfter = $null,
@@ -1275,6 +1290,7 @@ function Edit-DTWBeautifyScript {
 
     #region Other parameters
     $script:SpaceAfterComma = $SpaceAfterComma
+    $script:TreatAllGroupsEqual = $TreatAllGroupsEqual
     $script:AddSpaceAfter = $AddSpaceAfter
 
     #region Set script-level variable StandardOutput
