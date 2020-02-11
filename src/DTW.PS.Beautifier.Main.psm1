@@ -895,12 +895,20 @@ function Write-TokenContent_Type {
   process {
     # first, get the type name
     [string]$TypeName = $Token.Content
-    # next, remove any brackets found in the type name (some versions PowerShell include, some don't)
+    # next, remove any brackets found around the type name (some versions PowerShell include, some don't)
     if (($TypeName[0] -eq '[') -and ($TypeName[-1] -eq ']')) {
       $TypeName = $TypeName.Substring(1,$TypeName.Length - 2)
-      $HadSquareBrackets = $true
+      $SurroundedBySquareBrackets = $true
     } else {
-      $HadSquareBrackets = $false
+      $SurroundedBySquareBrackets = $false
+    }
+    # for array types (e.g. String[] or Object[][] etc), extract bare type
+    $SquareBracketStart = $TypeName.IndexOf('[')
+    if ($SquareBracketStart -gt 0) {
+      $ArrayBrackets = $TypeName.Substring($SquareBracketStart)
+      $TypeName = $TypeName.Substring(0,$SquareBracketStart)
+    } else {
+      $ArrayBrackets = ''
     }
 
     # attempt to get official built-in type accelerator name
@@ -921,7 +929,8 @@ function Write-TokenContent_Type {
     } else {
       # else it's probably a custom type or class name, let's not touch it.
     }
-    if ($HadSquareBrackets) {
+    $TypeName = $TypeName + $ArrayBrackets
+    if ($SurroundedBySquareBrackets) {
       # finally re-add [ ] around type name for writing back
       $TypeName = '[' + $TypeName + ']'
     }
